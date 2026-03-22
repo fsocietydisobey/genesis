@@ -1,0 +1,37 @@
+[project]
+name = "genesis"
+version = "0.1.0"
+description = "Autonomous multi-model orchestration system. Six composable LangGraph patterns unified under a Kabbalistic architecture where intent descends through balanced forces into running code."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain-core>=0.3",
+    "langchain-anthropic>=0.3",
+    "langchain-google-genai>=2",
+    "langgraph>=0.4",
+    "langgraph-checkpoint-sqlite>=2",
+    "aiosqlite>=0.20",
+    "mcp[cli]>=1.0",
+    "python-dotenv>=1",
+    "pyyaml>=6",
+    "pydantic>=2",
+    "anyio>=4",
+]
+
+[project.scripts]
+genesis = "genesis:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
