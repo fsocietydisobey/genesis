@@ -1,4 +1,4 @@
-# The Promethean Engine — TODO
+# Azerate — TODO
 
 The proactive, unsolicited tool-builder. Watches your behavior, identifies friction, builds infrastructure.
 
@@ -16,7 +16,7 @@ flowchart LR
 
 ## Phase 1: The Watcher — behavioral observation
 
-- [ ] Create `src/genesis/nodes/promethean/watcher.py`:
+- [ ] Create `src/genesis/nodes/azerate/watcher.py`:
   - [ ] Read `.bash_history` or `.zsh_history` — extract last N commands
   - [ ] Read `git log --oneline -50` — recent commit patterns
   - [ ] Read `git log --stat -20` — which files change most often
@@ -39,7 +39,7 @@ flowchart LR
 
 ## Phase 2: Friction analyzer — identify patterns
 
-- [ ] Create `src/genesis/nodes/promethean/friction.py`:
+- [ ] Create `src/genesis/nodes/azerate/friction.py`:
   - [ ] Takes `BehaviorSignals` from the Watcher
   - [ ] Groups signals by category (CLI friction, build friction, test friction, code friction)
   - [ ] Ranks by impact × frequency — highest friction first
@@ -59,7 +59,7 @@ flowchart LR
 
 ## Phase 3: Tool proposer — decide what to build
 
-- [ ] Create `src/genesis/nodes/promethean/proposer.py`:
+- [ ] Create `src/genesis/nodes/azerate/proposer.py`:
   - [ ] Takes the FrictionMap + rejection memory (what was previously rejected)
   - [ ] Filters out friction points that match previously rejected PRs
   - [ ] Selects the top 1 friction point to address (one tool per cycle)
@@ -75,9 +75,9 @@ flowchart LR
 
 ## Phase 4: The Forge — build the tool
 
-- [ ] Create `src/genesis/nodes/promethean/forge.py`:
+- [ ] Create `src/genesis/nodes/azerate/forge.py`:
   - [ ] Takes the ToolSpec from the proposer
-  - [ ] Creates a git branch: `promethean/<tool-name>`
+  - [ ] Creates a git branch: `azerate/<tool-name>`
   - [ ] Uses Claude CLI to write the tool (respects Otiyot if available)
   - [ ] Writes files to `scripts/`, `tools/`, or `.github/` — NEVER modifies product code
   - [ ] Runs basic validation: does the script execute? Does the config parse?
@@ -93,7 +93,7 @@ flowchart LR
 
 ## Phase 5: PR creator — present to human
 
-- [ ] Create `src/genesis/nodes/promethean/pr_creator.py`:
+- [ ] Create `src/genesis/nodes/azerate/pr_creator.py`:
   - [ ] Creates a Pull Request on the current repo (via `gh pr create` or git push + manual)
   - [ ] PR description includes:
     - What friction was observed (with evidence)
@@ -108,9 +108,9 @@ flowchart LR
 
 ## Phase 6: Rejection memory — learn from closed PRs
 
-- [ ] Add a `promethean_memory` table to Da'at:
+- [ ] Add a `azerate_memory` table to Da'at:
   ```sql
-  CREATE TABLE promethean_memory (
+  CREATE TABLE azerate_memory (
       id INTEGER PRIMARY KEY,
       timestamp REAL,
       tool_name TEXT,
@@ -130,15 +130,15 @@ flowchart LR
 
 ## Phase 7: Ein Sof integration
 
-- [ ] The Promethean can run:
-  - [ ] On a cron schedule (nightly): `scripts/promethean.sh`
+- [ ] Azerate can run:
+  - [ ] On a cron schedule (nightly): `scripts/azerate.sh`
   - [ ] Dispatched by Ein Sof after Genesis completes a cycle
-  - [ ] Manually via MCP tool: `promethean start`
-- [ ] Create `src/genesis/graphs/promethean.py` with `build_promethean_graph()`:
+  - [ ] Manually via MCP tool: `azerate start`
+- [ ] Create `src/genesis/graphs/azerate.py` with `build_azerate_graph()`:
   ```
   START → watcher → friction_analyzer → proposer → forge → pr_creator → END
   ```
-- [ ] Add `chain_promethean` MCP tool to `server/mcp.py`
-- [ ] Add to Cursor rules: `promethean start` → `chain_promethean()`
-- [ ] Ein Sof dispatch: after Genesis cycle completes, optionally run Promethean analysis
+- [ ] Add `chain_azerate` MCP tool to `server/mcp.py`
+- [ ] Add to Cursor rules: `azerate start` → `chain_azerate()`
+- [ ] Ein Sof dispatch: after Genesis cycle completes, optionally run Azerate analysis
 - [ ] Test: full pipeline — observe fake history, identify friction, build tool, create PR description

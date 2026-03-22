@@ -1,8 +1,8 @@
-# The Promethean Engine — Implementation approach
+# Azerate — Implementation approach
 
 The proactive tool-builder. Observes behavior, identifies friction, builds infrastructure.
 
-**Paths:** New nodes in `src/genesis/nodes/promethean/`. Graph in `src/genesis/graphs/promethean.py`. Memory table in Da'at. Daemon script in `scripts/promethean.sh`.
+**Paths:** New nodes in `src/genesis/nodes/azerate/`. Graph in `src/genesis/graphs/azerate.py`. Memory table in Da'at. Daemon script in `scripts/azerate.sh`.
 
 **Dependencies:** Can run independently of Genesis patterns. Integrates with Ein Sof (dispatch after Genesis cycles), Da'at (rejection memory), and Otiyot (uses primitives if available). Respects DIRECTIVES.md.
 
@@ -30,7 +30,7 @@ flowchart TB
 
 **Approach:**
 
-- `src/genesis/nodes/promethean/watcher.py`
+- `src/genesis/nodes/azerate/watcher.py`
 - Purely deterministic — no LLM calls. Reads files and parses patterns.
 - Shell history analysis:
   ```python
@@ -57,8 +57,8 @@ flowchart TB
 
 **Files to add:**
 
-- `src/genesis/nodes/promethean/__init__.py`
-- `src/genesis/nodes/promethean/watcher.py`
+- `src/genesis/nodes/azerate/__init__.py`
+- `src/genesis/nodes/azerate/watcher.py`
 
 ---
 
@@ -68,7 +68,7 @@ flowchart TB
 
 **Approach:**
 
-- `src/genesis/nodes/promethean/friction.py`
+- `src/genesis/nodes/azerate/friction.py`
 - Groups signals by category, ranks by `impact × frequency`
 - Uses Haiku for classification: given a set of signals, what tool category would eliminate the friction?
 - Pydantic structured output:
@@ -83,7 +83,7 @@ flowchart TB
 
 **Files to add:**
 
-- `src/genesis/nodes/promethean/friction.py`
+- `src/genesis/nodes/azerate/friction.py`
 
 ---
 
@@ -93,8 +93,8 @@ flowchart TB
 
 **Approach:**
 
-- `src/genesis/nodes/promethean/proposer.py`
-- Queries Da'at's `promethean_memory` table for previously rejected tools
+- `src/genesis/nodes/azerate/proposer.py`
+- Queries Da'at's `azerate_memory` table for previously rejected tools
 - Filters out rejected friction categories
 - Selects top 1 (one tool per cycle — prevents overwhelming)
 - Cool-down: checks if a PR was opened in the last 24h
@@ -111,7 +111,7 @@ flowchart TB
 
 **Files to add:**
 
-- `src/genesis/nodes/promethean/proposer.py`
+- `src/genesis/nodes/azerate/proposer.py`
 
 ---
 
@@ -121,7 +121,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    Spec["ToolSpec"] --> Branch["Create branch<br/>promethean/tool-name"]
+    Spec["ToolSpec"] --> Branch["Create branch<br/>azerate/tool-name"]
     Branch --> Build["Claude CLI builds the tool"]
     Build --> Validate["Basic validation<br/>(syntax, execution)"]
     Validate --> Files["Files created in<br/>scripts/ or tools/"]
@@ -132,8 +132,8 @@ flowchart TB
 
 **Approach:**
 
-- `src/genesis/nodes/promethean/forge.py`
-- Creates a branch: `git checkout -b promethean/<tool-name>`
+- `src/genesis/nodes/azerate/forge.py`
+- Creates a branch: `git checkout -b azerate/<tool-name>`
 - Uses Claude CLI to write the tool based on the ToolSpec
 - Writes only to allowed directories: `scripts/`, `tools/`, `.github/`
 - Runs basic validation: `python -c "import ast; ast.parse(open('file').read())"` for Python files, `bash -n script.sh` for shell scripts
@@ -155,7 +155,7 @@ def _validate_paths(files: list[str]) -> bool:
 
 **Files to add:**
 
-- `src/genesis/nodes/promethean/forge.py`
+- `src/genesis/nodes/azerate/forge.py`
 
 ---
 
@@ -165,11 +165,11 @@ def _validate_paths(files: list[str]) -> bool:
 
 **Approach:**
 
-- `src/genesis/nodes/promethean/pr_creator.py`
+- `src/genesis/nodes/azerate/pr_creator.py`
 - Uses `gh pr create` if the GitHub CLI is available, otherwise just pushes the branch and logs the description
 - PR body template:
   ```markdown
-  ## The Promethean noticed something
+  ## Azerate noticed something
 
   **Friction observed:** You type `git add -A && git commit -m "..." && git push` approximately 87 times per week.
 
@@ -185,24 +185,24 @@ def _validate_paths(files: list[str]) -> bool:
   ```
 
   ---
-  *Built by the Promethean Engine. Reject this PR if you don't want this tool.*
+  *Built by the Azerate. Reject this PR if you don't want this tool.*
   ```
 
 **Files to add:**
 
-- `src/genesis/nodes/promethean/pr_creator.py`
+- `src/genesis/nodes/azerate/pr_creator.py`
 
 ---
 
 ## 6. Rejection memory — learning from closed PRs
 
-**Goal:** Remember what the human rejected so the Promethean doesn't rebuild it.
+**Goal:** Remember what the human rejected so the Azerate doesn't rebuild it.
 
 **Approach:**
 
-- Add a `promethean_memory` table to the Da'at SQLite store:
+- Add a `azerate_memory` table to the Da'at SQLite store:
   ```sql
-  CREATE TABLE promethean_memory (
+  CREATE TABLE azerate_memory (
       id INTEGER PRIMARY KEY,
       timestamp REAL,
       tool_name TEXT,
@@ -212,7 +212,7 @@ def _validate_paths(files: list[str]) -> bool:
       rejection_reason TEXT
   );
   ```
-- New module `src/genesis/core/promethean_memory.py`:
+- New module `src/genesis/core/azerate_memory.py`:
   - `record_outcome(tool_name, friction_type, accepted, reason)`
   - `get_rejected_types()` — returns friction categories rejected 2+ times
   - `was_rejected(friction_type)` — quick check
@@ -220,11 +220,11 @@ def _validate_paths(files: list[str]) -> bool:
 
 **Files to add:**
 
-- `src/genesis/core/promethean_memory.py`
+- `src/genesis/core/azerate_memory.py`
 
 ---
 
-## 7. The Promethean graph
+## 7. Azerate graph
 
 **Goal:** Wire the full proactive pipeline.
 
@@ -241,17 +241,17 @@ flowchart TB
 
 **Approach:**
 
-- `src/genesis/graphs/promethean.py` with `build_promethean_graph()`
+- `src/genesis/graphs/azerate.py` with `build_azerate_graph()`
 - Five nodes: watcher → friction_analyzer → proposer → forge → pr_creator
 - Conditional: if proposer finds nothing (all friction addressed or all rejected) → END
-- Checkpointer: `promethean_checkpoints.db`
-- MCP tool: `chain_promethean()`
-- Cursor keyword: `promethean start` → `chain_promethean()`
+- Checkpointer: `azerate_checkpoints.db`
+- MCP tool: `chain_azerate()`
+- Cursor keyword: `azerate start` → `chain_azerate()`
 
 **Files to add:**
 
-- `src/genesis/graphs/promethean.py`
-- `src/genesis/nodes/promethean/__init__.py`
+- `src/genesis/graphs/azerate.py`
+- `src/genesis/nodes/azerate/__init__.py`
 - Update `src/genesis/graphs/__init__.py`
 - Update `src/genesis/server/mcp.py` — add tool
 - Update `.cursor/rules/mcp-routing.mdc` — add keyword
@@ -260,19 +260,19 @@ flowchart TB
 
 ## 8. Daemon + scheduling
 
-**Goal:** The Promethean can run on a schedule (nightly) or on demand.
+**Goal:** Azerate can run on a schedule (nightly) or on demand.
 
 **Approach:**
 
-- `scripts/promethean.sh` — simple runner:
+- `scripts/azerate.sh` — simple runner:
   ```bash
   #!/usr/bin/env bash
-  echo "Promethean: observing..."
-  uv run genesis-promethean
-  echo "Promethean: fire delivered."
+  echo "Azerate: observing..."
+  uv run genesis-azerate
+  echo "Azerate: fire delivered."
   ```
-- Add `genesis-promethean` entry point to `pyproject.toml` (or use the MCP tool)
-- Can be added to cron: `0 2 * * * /path/to/scripts/promethean.sh`
+- Add `genesis-azerate` entry point to `pyproject.toml` (or use the MCP tool)
+- Can be added to cron: `0 2 * * * /path/to/scripts/azerate.sh`
 - Ein Sof can dispatch it after Genesis completes a cycle
 
 ---
