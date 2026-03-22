@@ -1,11 +1,11 @@
-"""Nefesh (Leviathan) graph — parallel swarm dispatch.
+"""Nefesh graph — parallel swarm dispatch.
 
 The Animal Soul. Central Sovereign decomposes a goal into N independent tasks,
 fans out via Send(), merges results, and validates atomically.
 
 Supports two dispatch modes:
     - Flat: all tasks dispatched at once (for independent tasks)
-    - Klipah/Fibonacci: graduated generations (for tasks with dependencies)
+    - Klipah: graduated generations (for tasks with dependencies)
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ def _fan_out(state: OrchestratorState) -> list[Send]:
     """Dispatch tasks based on the Sovereign's manifest.
 
     Flat mode: Send() all tasks at once.
-    Klipah/Fibonacci mode: Sort tasks into generations by dependency depth,
+    Klipah mode: Sort tasks into generations by dependency depth,
     then dispatch all generations. Each generation's tasks get context from
     previous generations via accumulated state.
 
@@ -90,7 +90,7 @@ def _fan_out(state: OrchestratorState) -> list[Send]:
 
 
 async def build_leviathan_graph(config: OrchestratorConfig):
-    """Build and compile the Nefesh (Leviathan) parallel swarm graph.
+    """Build and compile the Nefesh parallel swarm graph.
 
     Args:
         config: OrchestratorConfig with provider/role definitions.
@@ -106,7 +106,7 @@ async def build_leviathan_graph(config: OrchestratorConfig):
 
     data_dir = Path(
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
-    ) / "ai-orchestrator"
+    ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
     db_path = str(data_dir / "leviathan_checkpoints.db")
 

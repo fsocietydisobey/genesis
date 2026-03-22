@@ -1,7 +1,7 @@
 """Sovereign node — task decomposition for Nefesh parallel swarm.
 
 Decomposes a high-level goal into N independent, file-disjoint tasks.
-Supports two dispatch modes: flat (all at once) and Klipah/Fibonacci
+Supports two dispatch modes: flat (all at once) and Klipah
 (graduated generations based on dependencies).
 """
 

@@ -17,7 +17,7 @@ log = get_logger("pidlock")
 def _lock_path(name: str) -> Path:
     """Get the lock file path for a server name."""
     run_dir = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
-    return run_dir / f"ai-orchestrator-{name}.pid"
+    return run_dir / f"genesis-{name}.pid"
 
 
 def acquire_lock(name: str) -> None:

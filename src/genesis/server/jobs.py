@@ -42,7 +42,7 @@ def _notify(title: str, message: str) -> None:
     """Send a desktop notification. Best-effort — fails silently."""
     try:
         subprocess.Popen(
-            ["notify-send", "--app-name=ai-orchestrator", title, message],
+            ["notify-send", "--app-name=genesis", title, message],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

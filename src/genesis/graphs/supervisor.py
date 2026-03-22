@@ -48,7 +48,7 @@ def _get_db_path() -> str:
     """Get the path for the checkpoint database."""
     data_dir = Path(
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
-    ) / "ai-orchestrator"
+    ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
     return str(data_dir / "checkpoints.db")
 

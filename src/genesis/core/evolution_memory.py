@@ -1,6 +1,6 @@
 """Evolution memory for Chayah — tracks what worked and what failed per cycle.
 
-Separate from ARIL's memory.py (which tracks cross-run task context).
+Separate from Nitzotz memory.py (which tracks cross-run task context).
 This tracks the evolution history: which cycles improved health, which
 were reverted, which spec items failed repeatedly.
 """
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS evolution_log (
 def _get_db_path() -> str:
     data_dir = Path(
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
-    ) / "ai-orchestrator"
+    ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
     return str(data_dir / "evolution.db")
 

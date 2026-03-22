@@ -1,4 +1,4 @@
-"""Ein Sof (MUTHER) graph — the meta-orchestrator.
+"""Ein Sof graph — the meta-orchestrator.
 
 The Infinite. Monitors the repository, performs Tzimtzum (contraction —
 budget, directives), and spawns the right pattern: Chayah (evolution),
@@ -168,7 +168,7 @@ def _after_directive(state: OrchestratorState) -> str:
 
 
 async def build_muther_graph(config: OrchestratorConfig):
-    """Build and compile the Ein Sof (MUTHER) meta-orchestrator graph.
+    """Build and compile the Ein Sof meta-orchestrator graph.
 
     Args:
         config: OrchestratorConfig with provider/role definitions.
@@ -184,7 +184,7 @@ async def build_muther_graph(config: OrchestratorConfig):
 
     data_dir = Path(
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
-    ) / "ai-orchestrator"
+    ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
     db_path = str(data_dir / "muther_checkpoints.db")
 

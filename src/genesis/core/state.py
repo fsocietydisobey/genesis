@@ -114,7 +114,7 @@ class OrchestratorState(TypedDict, total=False):
     # --- Error recovery ---
     node_failure: Annotated[dict[str, Any], _node_failure_reducer]
 
-    # --- ARIL (v0.7 — Autonomous Research & Implementation Lab) ---
+    # --- Nitzotz (phased pipeline) ---
     # Phase routing
     phase: str  # Current phase: "research", "planning", "implementation", "review"
     handoff_type: str  # Routing signal between phases/nodes (e.g. "research_complete", "plan_approved")

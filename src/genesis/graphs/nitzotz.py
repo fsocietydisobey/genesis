@@ -1,6 +1,6 @@
-"""ARIL parent graph — phase router with hierarchical subgraphs.
+"""Nitzotz parent graph — phase router with hierarchical subgraphs.
 
-Genesis / ARIL: Autonomous Research & Implementation Lab. A separate graph
+Genesis / Nitzotz: The Divine Sparks. A separate graph
 entry point that orchestrates four phase subgraphs (research, planning,
 implementation, review) via structured handoffs.
 
@@ -67,7 +67,7 @@ async def _load_memory_node(state: OrchestratorState) -> dict:
 async def _phase_router_node(state: OrchestratorState) -> dict:
     """Read handoff_type and route to the next phase.
 
-    This is the hub of the ARIL graph. After each phase subgraph returns,
+    This is the hub of the Nitzotz graph. After each phase subgraph returns,
     it reads the handoff_type and decides:
     - Which phase to run next
     - Whether to loop back to the same phase
@@ -198,7 +198,7 @@ async def _save_memory_node(state: OrchestratorState) -> dict:
 
     try:
         await save_run(
-            thread_id="",  # No thread_id in ARIL yet — could add later
+            thread_id="",  # No thread_id in Nitzotz yet — could add later
             summary=summary,
             task=task,
             decisions=decisions,
@@ -213,7 +213,7 @@ async def _save_memory_node(state: OrchestratorState) -> dict:
 
 
 async def build_aril_graph(config: OrchestratorConfig):
-    """Build and compile the ARIL parent graph with phase subgraphs.
+    """Build and compile the Nitzotz parent graph with phase subgraphs.
 
     Uses the same persistent checkpointer as Option B. The four phase
     subgraphs are compiled without checkpointers (the parent handles it).
@@ -233,7 +233,7 @@ async def build_aril_graph(config: OrchestratorConfig):
     # Persistent checkpointer (same path as Option B)
     data_dir = Path(
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
-    ) / "ai-orchestrator"
+    ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
     db_path = str(data_dir / "aril_checkpoints.db")
 
@@ -241,7 +241,7 @@ async def build_aril_graph(config: OrchestratorConfig):
     await conn.execute("PRAGMA journal_mode=WAL")
     checkpointer = AsyncSqliteSaver(conn)
     await checkpointer.setup()
-    log.info("ARIL checkpointer ready: %s", db_path)
+    log.info("Nitzotz checkpointer ready: %s", db_path)
 
     # Build the critic/validator model (Haiku — cheap and fast)
     critic_model = get_classify_model(config)

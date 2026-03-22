@@ -1,7 +1,7 @@
-"""Chayah (Ouroboros) graph — continuous evolution loop.
+"""Chayah graph — continuous evolution loop.
 
 The Living Soul. A self-sustaining loop:
-    assess → triage → execute (via Nitzotz/ARIL) → validate → commit/rollback → assess
+    assess → triage → execute (via Nitzotz) → validate → commit/rollback → assess
 
 Runs until convergence (5 cycles with no improvement), budget exhaustion,
 or idle (spec complete + healthy).
@@ -70,9 +70,9 @@ async def _set_baseline_node(state: OrchestratorState) -> dict:
 
 
 async def _execute_node(state: OrchestratorState) -> dict:
-    """Execute the triage decision by invoking ARIL with the generated task.
+    """Execute the triage decision by invoking Nitzotz with the generated task.
 
-    Note: In a full implementation, this would embed the ARIL graph as a subgraph.
+    Note: In a full implementation, this would embed the Nitzotz graph as a subgraph.
     For now, it delegates to the existing CLI runners directly for simplicity.
     """
     from genesis.cli.prompts import build_prompt
@@ -209,7 +209,7 @@ def _after_commit(state: OrchestratorState) -> str:
 
 
 async def build_ouroboros_graph(config: OrchestratorConfig):
-    """Build and compile the Chayah (Ouroboros) evolution loop graph.
+    """Build and compile the Chayah evolution loop graph.
 
     Args:
         config: OrchestratorConfig with provider/role definitions.
@@ -225,7 +225,7 @@ async def build_ouroboros_graph(config: OrchestratorConfig):
 
     data_dir = Path(
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
-    ) / "ai-orchestrator"
+    ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
     db_path = str(data_dir / "ouroboros_checkpoints.db")
 

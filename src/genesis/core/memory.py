@@ -1,11 +1,11 @@
-"""Persistent memory for ARIL — cross-run context via SQLite.
+"""Persistent memory for Nitzotz — cross-run context via SQLite.
 
 Stores summaries, decisions, and outcomes from past runs so the phase
 router can inject relevant context into new runs. This is cross-run
 memory (what happened in previous invocations), not within-run state
 (which is handled by LangGraph's checkpointer).
 
-Database lives at ~/.local/share/ai-orchestrator/aril_memory.db.
+Database lives at ~/.local/share/genesis/aril_memory.db.
 """
 
 import json
@@ -34,10 +34,10 @@ CREATE TABLE IF NOT EXISTS run_memory (
 
 
 def _get_memory_db_path() -> str:
-    """Get the path for the ARIL memory database."""
+    """Get the path for the Nitzotz memory database."""
     data_dir = Path(
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
-    ) / "ai-orchestrator"
+    ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
     return str(data_dir / "aril_memory.db")
 

@@ -35,12 +35,12 @@ def load_config(config_path: Path | str | None = None) -> OrchestratorConfig:
     Searches in order:
     1. Explicit path argument
     2. ./config.yaml (next to the script)
-    3. ~/.config/ai-orchestrator/config.yaml
+    3. ~/.config/genesis/config.yaml
     """
     search_paths = [
         Path(config_path) if config_path else None,
         Path(__file__).parent.parent.parent.parent / "config.yaml",
-        Path.home() / ".config" / "ai-orchestrator" / "config.yaml",
+        Path.home() / ".config" / "genesis" / "config.yaml",
     ]
 
     for path in search_paths:

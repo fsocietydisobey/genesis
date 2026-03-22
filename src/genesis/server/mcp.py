@@ -62,7 +62,7 @@ async def _get_graph():
 
 
 async def _get_aril_graph():
-    """Get or build the ARIL/Nitzotz graph (lazy async singleton)."""
+    """Get or build the Nitzotz graph (lazy async singleton)."""
     global _aril_graph, _aril_checkpointer
     if _aril_graph is None:
         _aril_graph, _aril_checkpointer = await build_aril_graph(config)
@@ -70,7 +70,7 @@ async def _get_aril_graph():
 
 
 async def _get_ouroboros_graph():
-    """Get or build the Chayah/Ouroboros graph (lazy async singleton)."""
+    """Get or build the Chayah graph (lazy async singleton)."""
     global _ouroboros_graph, _ouroboros_checkpointer
     if _ouroboros_graph is None:
         _ouroboros_graph, _ouroboros_checkpointer = await build_ouroboros_graph(config)
@@ -78,7 +78,7 @@ async def _get_ouroboros_graph():
 
 
 async def _get_leviathan_graph():
-    """Get or build the Nefesh/Leviathan graph (lazy async singleton)."""
+    """Get or build the Nefesh graph (lazy async singleton)."""
     global _leviathan_graph, _leviathan_checkpointer
     if _leviathan_graph is None:
         _leviathan_graph, _leviathan_checkpointer = await build_leviathan_graph(config)
@@ -86,7 +86,7 @@ async def _get_leviathan_graph():
 
 
 async def _get_muther_graph():
-    """Get or build the Ein Sof/MUTHER graph (lazy async singleton)."""
+    """Get or build the Ein Sof graph (lazy async singleton)."""
     global _muther_graph, _muther_checkpointer
     if _muther_graph is None:
         _muther_graph, _muther_checkpointer = await build_muther_graph(config)
@@ -113,7 +113,7 @@ async def health() -> str:
 
     return (
         f"**Status:** healthy\n"
-        f"**Server:** ai-orchestrator (LangGraph)\n"
+        f"**Server:** Genesis\n"
         f"**Uptime:** {hours}h {minutes}m {seconds}s\n"
         f"**Jobs running:** {running}\n"
         f"**Jobs paused:** {paused}"
@@ -255,9 +255,9 @@ async def chain(task_description: str, context: str = "", thread_id: str = "") -
 
 @mcp.tool()
 async def chain_aril(task_description: str, context: str = "", thread_id: str = "") -> str:
-    """Start an ARIL pipeline (Genesis) in the background.
+    """Start the Nitzotz pipeline (Genesis) in the background.
 
-    ARIL runs a phased pipeline: research → planning → implementation → review.
+    Nitzotz runs a phased pipeline: research → planning → implementation → review.
     Each phase has a critic that loops until quality passes or max steps reached.
     The pipeline PAUSES for human approval in the review phase.
 
@@ -274,7 +274,7 @@ async def chain_aril(task_description: str, context: str = "", thread_id: str = 
     t_entry = time.time()
     log.info("chain_aril() called — task: %s", task_description[:80])
     graph = await _get_aril_graph()
-    log.info("ARIL graph ready (%.1fs)", time.time() - t_entry)
+    log.info("Nitzotz graph ready (%.1fs)", time.time() - t_entry)
 
     job = create_job(thread_id=thread_id if thread_id else None)
     graph_config = {"configurable": {"thread_id": job.thread_id}}
@@ -309,27 +309,27 @@ async def chain_aril(task_description: str, context: str = "", thread_id: str = 
                 is_paused = any("human_review" in str(n) for n in next_nodes)
                 if is_paused:
                     job.status = "paused"
-                    job.progress.append("Paused — waiting for human approval (ARIL review phase)")
+                    job.progress.append("Paused — waiting for human approval (Nitzotz review phase)")
                     log.info("job %s: paused at review phase", job.job_id)
                     notify_job_update(job)
                     return
 
             job.status = "completed"
             job.finished_at = time.time()
-            log.info("job %s: ARIL completed", job.job_id)
+            log.info("job %s: Nitzotz completed", job.job_id)
             notify_job_update(job)
 
         except Exception as e:
             job.status = "failed"
             job.error = str(e)
             job.finished_at = time.time()
-            log.error("job %s: ARIL failed — %s", job.job_id, e)
+            log.error("job %s: Nitzotz failed — %s", job.job_id, e)
             notify_job_update(job)
 
     job._task = asyncio.create_task(_run())
 
     return (
-        f"**ARIL Job started:** `{job.job_id}`\n"
+        f"**Nitzotz Job started:** `{job.job_id}`\n"
         f"**Thread:** `{job.thread_id}`\n\n"
         f"Phases: research → planning → implementation → review\n"
         f"Use `status(job_id=\"{job.job_id}\")` to check progress.\n\n"
@@ -339,7 +339,7 @@ async def chain_aril(task_description: str, context: str = "", thread_id: str = 
 
 @mcp.tool()
 async def chain_ouroboros(max_cycles: int = 50, budget: float = 5.0) -> str:
-    """Start a Chayah (Ouroboros) continuous evolution loop.
+    """Start the Chayah continuous evolution loop.
 
     Autonomously improves the codebase: assess health → triage → execute → validate
     → commit or revert → loop. Reads SPEC.md for feature goals. Stops on convergence,
@@ -392,7 +392,7 @@ async def chain_ouroboros(max_cycles: int = 50, budget: float = 5.0) -> str:
 
 @mcp.tool()
 async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
-    """Start a Nefesh (Leviathan) parallel swarm.
+    """Start a Nefesh parallel swarm.
 
     A Sovereign planner decomposes the goal into N independent tasks and dispatches
     them concurrently. Results are merged and validated atomically.
@@ -457,7 +457,7 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
 
 @mcp.tool()
 async def chain_muther(budget: float = 10.0) -> str:
-    """Start Ein Sof (MUTHER) — the autonomous meta-orchestrator.
+    """Start Ein Sof — the autonomous meta-orchestrator.
 
     Monitors repository health, decides which pattern to spawn (Chayah for evolution,
     Nefesh for batch fixes, Nitzotz for single tasks), enforces directives, and
@@ -767,7 +767,7 @@ def _build_progress_message(node_name: str, state_update: dict) -> str:
 
 
 def _build_aril_progress_message(node_name: str, state_update: dict) -> str:
-    """Build a phase-aware progress message for ARIL graph updates."""
+    """Build a phase-aware progress message for Nitzotz graph updates."""
     if state_update is None:
         state_update = {}
 
@@ -891,7 +891,7 @@ def main():
 
     setup_logging()
     acquire_lock("graph")
-    log.info("ai-orchestrator (LangGraph server) starting")
+    log.info("genesis (LangGraph server) starting")
     atexit.register(kill_all_subprocesses)
     mcp.run()
 
