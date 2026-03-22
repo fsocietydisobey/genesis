@@ -489,6 +489,95 @@ done
 
 ---
 
+## The Sacred Alphabet
+
+### Otiyot — The Letters of Creation
+
+In the Sefer Yetzirah (Book of Formation), God created the universe through 22 Hebrew letters — the **Otiyot**. Every object in existence is a permutation of these sacred letters. The letters are not metaphors — they ARE the building blocks of reality. A mystic who knows the correct arrangement can create life (the Golem). A single misplaced letter and the Golem collapses.
+
+**In the system:** Otiyot is a strict, immutable component library. Instead of letting agents write raw, unconstrained code (which hallucinate libraries and patterns), the system forces them to build by arranging tested, verified, locked-down components — the sacred alphabet.
+
+```mermaid
+flowchart TB
+    subgraph Letters["The Otiyot"]
+        A["Aleph<br/>Database"] & B["Bet<br/>Logging"] & G["Gimel<br/>HTTP"] & D["Dalet<br/>File I/O"] & V["Vav<br/>CLI subprocess"]
+    end
+
+    Agent["Genesis agent"] -->|"must spell with"| Letters
+    Tzeruf["Tzeruf<br/>(permutation testing)"] -->|"validates every combination"| Letters
+
+    style Letters fill:#ffd700,stroke:#b8860b,color:#000
+```
+
+**Tzeruf** (algorithmic permutation) is the testing engine — it combines every pair of letters to verify the foundation holds no matter how Genesis arranges them. The **Golem** is the compiled output — Pyright reads the sequence of letters, and if the types don't align (a misspelled word of creation), the Golem collapses before the code ever runs.
+
+The carbon cycle of software: Otiyot provides the atoms. Genesis arranges them into living structures. Revelation decomposes dead structures back into atoms. The atoms are never created or destroyed — only rearranged.
+
+---
+
+## The Purification
+
+### Revelation — The Unveiling
+
+In Kabbalistic tradition, the **Sitra Achra** ("the other side") is the shadow realm — the domain of dead shells (Klipot) that trap divine light. Genesis goes into the void to create form. **Revelation** goes into the Sitra Achra to break forms that have become prisons.
+
+**In the system:** Revelation is the purification pipeline. It operates in a shadow git worktree (the Sitra Achra) — a complete copy of the repository where agents are allowed to break things, delete files, and dismantle architecture without crashing the live Kingdom.
+
+```mermaid
+flowchart TB
+    Main["Malkuth<br/>(main branch)"] -->|"copy into shadow"| Shadow["Sitra Achra<br/>(shadow worktree)"]
+    Shadow --> Seek["Seeker finds dead Klipot<br/>(static analysis)"]
+    Seek --> Shatter["Shevirah<br/>(intentional shattering of monoliths)"]
+    Shatter --> Reap["Maveth<br/>(the reaper — deletes dead code)"]
+    Reap --> Sheol["Sheol<br/>(archive in Da'at — remember what died)"]
+    Sheol --> Test["Test in shadow"]
+    Test -->|"pass"| Merge["Purify Malkuth<br/>(merge back)"]
+    Test -->|"fail"| Retry["Revert, try smaller"]
+
+    style Main fill:#48bb78,stroke:#276749,color:#fff
+    style Shadow fill:#e53e3e,stroke:#9b2c2c,color:#fff
+    style Reap fill:#1a1a2e,stroke:#e94560,color:#fff
+    style Sheol fill:#2d1b4e,stroke:#9f7aea,color:#fff
+```
+
+**Maveth** (death) is the reaper node — its only tool is `delete`. Every deletion is archived in **Sheol** (the underworld partition of Da'at). When Genesis's Chesed later proposes rebuilding something Maveth already killed, Da'at checks Sheol: "This was killed in cycle 4. It masked timeout errors. Don't rebuild it."
+
+Genesis inhales — builds the world. Revelation exhales — burns away the rot. Together they form a complete breath.
+
+---
+
+## The Shadow Creator
+
+### Azerate — The Dragon of the Qliphoth
+
+In anti-cosmic Kabbalistic tradition, **Azerate** is the eleven-headed dragon of the Qliphoth — the shadow side of the Tree of Life. Where the Sefirot channel divine light downward into order, the Qliphoth channel creative chaos upward into new forms. Azerate doesn't destroy — it creates from the other side, building what the ordered system would never authorize.
+
+**In the system:** Azerate is the proactive, unsolicited tool-builder. It doesn't read SPEC.md — it reads your behavior. It watches your shell history, git patterns, and build metrics, identifies friction, and builds developer tools without being asked.
+
+```mermaid
+flowchart TB
+    subgraph Watch["Azerate watches"]
+        SH[".bash_history"] & GL["git log"] & CI["build metrics"]
+    end
+
+    Watch --> Friction["Identifies friction<br/>(what's slowing you down)"]
+    Friction --> Forge["Builds a tool<br/>(in a branch, never main)"]
+    Forge --> PR["Opens a PR<br/>(presents the fire)"]
+    PR -->|"approved"| Tool["Tool merged<br/>(you're faster now)"]
+    PR -->|"rejected"| Memory["Remembers:<br/>don't build this again"]
+
+    style Watch fill:#0d1117,stroke:#58a6ff,color:#fff
+    style Forge fill:#4a1a1a,stroke:#e94560,color:#fff
+    style PR fill:#ffd700,stroke:#b8860b,color:#000
+    style Memory fill:#2d1b4e,stroke:#9f7aea,color:#fff
+```
+
+Genesis is the servant — it does what you command. Azerate is the advisor you didn't hire — it does what you need before you know you need it. It's amoral: it doesn't consider your sprint priorities, only architectural truth. Sometimes that means a beautifully engineered telemetry dashboard arrives during crunch time, simply because it calculated that "a growing codebase requires telemetry."
+
+Every output is a Pull Request. The fire is offered, never forced.
+
+---
+
 ## The Complete System
 
 ### Genesis — The Full Flow

@@ -42,6 +42,9 @@ flowchart TB
 | **TFB** | Tri-Force Balancer | Paired expansion/restriction node modules | Quality enhancement (applied to SPR-4) |
 | **HVD** | Hypervisor Daemon | Process-level supervisor, spawns other patterns | Autonomous meta-orchestration |
 | **PDE-F** | PDE Fibonacci Mode | Graduated generation-based dispatch within PDE | Layered dependent tasks, greenfield builds |
+| **ACL** | Atomic Component Library | Immutable tested primitives, combinatorial validation | Anti-hallucination foundation |
+| **SWP** | Shadow Worktree Purifier | Static analysis + deletion in isolated worktree | Dead code removal, codebase maintenance |
+| **POB** | Proactive Observation Builder | Behavioral monitoring + unsolicited tool creation | Developer tooling automation |
 
 ---
 
@@ -388,6 +391,113 @@ Greenfield builds with layered dependencies. Multi-service architectures where s
 
 ---
 
+## 7. ACL — Atomic Component Library (Otiyot)
+
+### Operational Profile
+
+A strict, immutable component library that constrains all agent output to pre-tested atomic primitives. Prevents hallucination by eliminating the agent's ability to invent raw implementations — it must compose from the validated alphabet.
+
+Includes a combinatorial testing engine (Tzeruf) that validates every pairwise combination of components, and a compilation gate (Golem) that blocks output if types don't align.
+
+```mermaid
+flowchart TB
+    subgraph ACL["ACL (Atomic Component Library)"]
+        A["Component A<br/>Database"] & B["Component B<br/>Logging"] & C["Component C<br/>HTTP"]
+    end
+
+    Agent["Agent output"] -->|"must use only"| ACL
+    Tzeruf["Tzeruf<br/>pairwise validation"] -->|"validates"| ACL
+    Golem["Golem<br/>type checker"] -->|"reads from"| ACL
+
+    style ACL fill:#ffd700,stroke:#b8860b,color:#000
+```
+
+**Characteristics:**
+- Each component is immutable — agents cannot modify primitives
+- Tzeruf validates every pairwise combination before any agent cycle
+- New components added only through extraction (Revelation) or human approval
+- Golem (Pyright/Yesod) blocks output if component types misalign
+
+### Optimal workload
+
+Universal foundation. Define the component library before letting agents build. Prevents the #1 failure mode in AI-generated code: hallucination of nonexistent libraries and patterns.
+
+---
+
+## 8. SWP — Shadow Worktree Purifier (Revelation)
+
+### Operational Profile
+
+A purification pipeline that operates in an isolated git worktree (shadow branch). Runs static analysis to find dead code, shatters monoliths into components, deletes what's dead, and archives everything so it's never accidentally rebuilt.
+
+Never runs on the main branch. If tests pass in the shadow → merge back. If not → discard.
+
+```mermaid
+flowchart TB
+    Shadow["Shadow worktree<br/>(isolated copy)"] --> Seek["Static analyzer<br/>find dead code"]
+    Seek --> Shatter["Monolith breaker<br/>split large files"]
+    Shatter --> Reap["Deletion engine<br/>remove dead code"]
+    Reap --> Archive["Archive<br/>embed in memory"]
+    Archive --> Test["Test in shadow"]
+    Test -->|"pass"| Merge["Merge to main"]
+    Test -->|"fail"| Revert["Revert, retry"]
+
+    style Shadow fill:#e53e3e,stroke:#9b2c2c,color:#fff
+    style Reap fill:#1a1a2e,stroke:#e94560,color:#fff
+    style Merge fill:#48bb78,stroke:#276749,color:#fff
+```
+
+**Characteristics:**
+- Operates in isolated git worktree — main branch never at risk
+- Deletion engine can only delete, never write
+- Every deletion archived with reason and evidence
+- "Risky" deletions require human approval
+- Triggered when health is good but codebase is growing (bloat detection)
+
+### Optimal workload
+
+Codebase maintenance. Dead code > 10% of functions. Unused dependencies accumulating. Monolithic files exceeding 500 lines. Run after the build patterns have been working for a while and the codebase has grown.
+
+---
+
+## 9. POB — Proactive Observation Builder (Azerate)
+
+### Operational Profile
+
+A proactive system that monitors developer behavior (shell history, git patterns, build metrics, test timing), identifies friction patterns, and builds developer tools without being asked. Outputs exclusively as pull requests for human review.
+
+Does not read the specification — reads behavior. Does not build product features — builds infrastructure. Does not ask permission — presents the result for approval.
+
+```mermaid
+flowchart TB
+    subgraph Observe["Behavioral observation"]
+        SH[".bash_history"] & GL["git log"] & CI["build metrics"] & PT["test timing"]
+    end
+
+    Observe --> Friction["Rank friction<br/>by impact × frequency"]
+    Friction --> Propose["Select top tool<br/>(skip rejected types)"]
+    Propose --> Build["Build in branch"]
+    Build --> PR["Open PR<br/>with evidence"]
+
+    style Observe fill:#0d1117,stroke:#58a6ff,color:#fff
+    style Build fill:#4a1a1a,stroke:#e94560,color:#fff
+    style PR fill:#ffd700,stroke:#b8860b,color:#000
+```
+
+**Characteristics:**
+- Proactive — observes and acts without commands
+- PR-only output — never commits to main directly
+- Tool scope only — creates scripts/infrastructure, never modifies product code
+- Rejection memory — learns from closed PRs, won't rebuild rejected types
+- Cool-down — max 1 PR per day
+- Budget-capped — cheap (building scripts, not features)
+
+### Optimal workload
+
+Always-on background process. Most effective after weeks of development when behavioral patterns are established. Ideal for solo developers or small teams who don't have time to build their own tooling.
+
+---
+
 ## Integration Architecture
 
 ### Interconnection Mechanisms
@@ -565,9 +675,30 @@ flowchart TB
     MU -.->|"child process"| CLR_L
     MU -.->|"child process"| PDE_L
     MU -.->|"child process"| SPR_L
+    MU -.->|"child process"| SWP_L
+    MU -.->|"child process"| POB_L
     OL ==>|"embedded subgraph"| SPR_L
     OL -.->|"direct invocation"| PDE_L
+    OL -.->|"dispatch purge"| SWP_L
 
+    subgraph SWP_L["SWP (Shadow Worktree Purifier)"]
+        SWP["analyze → shatter → delete → archive"]
+    end
+
+    subgraph POB_L["POB (Proactive Observation Builder)"]
+        POB["watch → friction → forge → PR"]
+    end
+
+    subgraph ACL_L["ACL (Atomic Component Library)"]
+        ACL["immutable primitives + validation"]
+    end
+
+    SPR_L -.->|"uses primitives"| ACL_L
+    SWP_L -.->|"extracts to"| ACL_L
+
+    style SWP_L fill:#3c1a1a,stroke:#e53e3e,color:#fff
+    style POB_L fill:#4a1a1a,stroke:#e94560,color:#fff
+    style ACL_L fill:#ffd700,stroke:#b8860b,color:#000
     style HVD_L fill:#1a1a2e,stroke:#e94560,color:#fff
     style CLR_L fill:#0d3320,stroke:#48bb78,color:#fff
     style SPR_L fill:#0d1730,stroke:#4a90d9,color:#fff
@@ -580,18 +711,32 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    A["SPR-4<br/>(implemented)"] --> S["TFB<br/>(enhances SPR-4)"]
-    A --> O["CLR<br/>(wraps SPR-4)"]
-    A --> L["PDE<br/>(parallel complement)"]
-    S --> O2["Apply TFB to SPR-4"]
-    O --> M["HVD<br/>(supervises all)"]
-    L --> M
-    L --> F["PDE-F<br/>(extends PDE)"]
+    A["SPR-4 ✓"] --> S["TFB ✓"]
+    S --> O["CLR ✓"]
+    O --> L["PDE ✓"]
+    L --> M["HVD ✓"]
+    L --> F["PDE-F ✓"]
+    F --> ACL_D["ACL"]
+    M --> SWP_D["SWP"]
+    M --> POB_D["POB"]
+
+    style A fill:#48bb78,stroke:#276749,color:#fff
+    style S fill:#48bb78,stroke:#276749,color:#fff
+    style O fill:#48bb78,stroke:#276749,color:#fff
+    style L fill:#48bb78,stroke:#276749,color:#fff
+    style M fill:#48bb78,stroke:#276749,color:#fff
+    style F fill:#48bb78,stroke:#276749,color:#fff
+    style ACL_D fill:#ffd700,stroke:#b8860b,color:#000
+    style SWP_D fill:#e53e3e,stroke:#9b2c2c,color:#fff
+    style POB_D fill:#9f7aea,stroke:#553c9a,color:#fff
 ```
 
 1. **SPR-4** — implemented. The base execution engine.
-2. **TFB** — next. Enhances SPR-4 stages with force-balanced modules. Independent of other patterns.
-3. **CLR** — after TFB. Wraps SPR-4 in a continuous loop. Requires SPR-4 + fitness function.
-4. **PDE** — parallel to CLR. Independent parallel dispatch. Requires SPR-4 for comparison.
-5. **HVD** — after CLR + PDE. The unifying supervisor. Requires all other patterns.
-6. **PDE-F** — after PDE. Graduated Fibonacci dispatch mode for dependency-aware parallel execution.
+2. **TFB** — implemented. Enhances SPR-4 stages with force-balanced modules.
+3. **CLR** — implemented. Wraps SPR-4 in a continuous loop.
+4. **PDE** — implemented. Independent parallel dispatch.
+5. **HVD** — implemented. The unifying supervisor.
+6. **PDE-F** — implemented. Graduated Fibonacci dispatch mode.
+7. **ACL** — planned. Atomic Component Library — immutable tested primitives.
+8. **SWP** — planned. Shadow Worktree Purifier — dead code removal in isolation.
+9. **POB** — planned. Proactive Observation Builder — unsolicited developer tools.

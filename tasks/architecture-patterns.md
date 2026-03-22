@@ -41,7 +41,10 @@ flowchart TB
 | **Nefesh** (formerly Leviathan) | The Animal Soul | Parallel swarm with central merge | `tasks/leviathan/` |
 | **Sefirot** | Kabbalistic Tree of Life | Balanced expansion/restriction forces | `tasks/sefirot/` |
 | **Ein Sof** (formerly MUTHER) | The Infinite | Meta-orchestrator, Graph of Graphs | `tasks/muther/` |
-| **Klipah** (formerly Fibonacci) | The Shells/Husks | Graduated parallel dispatch — scales concurrency with foundation | `tasks/fibonacci/` |
+| **Klipah** (formerly Fibonacci) | The Shells/Husks | Graduated parallel dispatch — scales concurrency with foundation | `tasks/completed/fibonacci/` |
+| **Otiyot** | The Sacred Letters | Immutable atomic primitives — the alphabet agents spell with | `tasks/planned/otiyot/` |
+| **Revelation** | The Unveiling | Dead code purging in the Sitra Achra (shadow worktree) | `tasks/planned/revelation/` |
+| **Azerate** | Shadow Dragon of the Qliphoth | Proactive tool-builder — watches behavior, builds infrastructure | `tasks/planned/azerate/` |
 
 ---
 
@@ -396,6 +399,140 @@ Greenfield builds with layered dependencies. "Build a full-stack app." "Implemen
 
 ---
 
+## 7. Otiyot — The Sacred Alphabet
+
+**From the Sefer Yetzirah (Book of Formation)**
+
+### Symbolism
+
+In the Sefer Yetzirah, God created the universe through 22 Hebrew letters — the Otiyot. Every word, every name, every object in existence is a permutation of these sacred letters. The letters are not metaphors — they ARE the building blocks of reality. A mystic who knows the correct arrangement of letters can create life (the Golem). A single misplaced letter and the Golem collapses.
+
+In this architecture, Otiyot is a strict, immutable component library — the atomic primitives that all agents MUST use. Instead of letting agents write raw, unconstrained code (which leads to hallucination), the system forces them to build by arranging tested, verified, locked-down components.
+
+### What it does
+
+The foundational alphabet that Genesis, Revelation, and Azerate all operate on.
+
+```mermaid
+flowchart TB
+    subgraph Alphabet["The Otiyot (atomic primitives)"]
+        A["Aleph<br/>Database"]
+        B["Bet<br/>Logging"]
+        G["Gimel<br/>HTTP + retry"]
+        D["Dalet<br/>File I/O"]
+        V["Vav<br/>CLI subprocess"]
+    end
+
+    Agent["Genesis agent"] -->|"must spell with"| Alphabet
+    Tzeruf["Tzeruf<br/>combinatorial testing"] -->|"validates"| Alphabet
+    Golem["Golem<br/>type-checked output"] -->|"reads letters from"| Alphabet
+
+    style Alphabet fill:#ffd700,stroke:#b8860b,color:#000
+```
+
+**Key properties:**
+- Each letter is immutable — agents cannot modify the primitives
+- Each letter has 100% test coverage
+- Tzeruf (permutation engine) validates every pairwise combination of letters
+- The Golem (compiled output) only animates if the letters are arranged correctly (Pyright)
+- New letters can be added (through Revelation extracting patterns from dead code)
+
+### When to use
+
+Always. Otiyot is the foundation. Define the alphabet before letting agents build. The first version can be as simple as 5-10 commonly used wrappers extracted from existing code.
+
+---
+
+## 8. Revelation — The Unveiling
+
+**The Purification Pipeline**
+
+### Symbolism
+
+In the Kabbalistic tradition, the Sitra Achra ("the other side") is the shadow realm — the domain of dead shells (Klipot) that trap divine light. Revelation enters the shadow, identifies what has died, and deliberately shatters it so the trapped light can be freed. Genesis inhales — it builds the world. Revelation exhales — it burns away the rot.
+
+### What it does
+
+A purification pipeline that operates in a shadow git worktree (the Sitra Achra), finds dead code through static analysis, shatters monoliths, and deletes what's dead — archiving everything in Sheol (the underworld partition of Da'at) so it's never accidentally rebuilt.
+
+```mermaid
+flowchart TB
+    Start["Enter Sitra Achra<br/>(shadow worktree)"] --> Seek["Seeker<br/>static analysis"]
+    Seek --> Map["Klipot Map<br/>dead code, unused deps"]
+    Map --> Shatter["Shevirah<br/>break monoliths"]
+    Shatter --> Reap["Maveth<br/>delete dead code"]
+    Reap --> Archive["Sheol<br/>archive in Da'at"]
+    Archive --> Test["Test in shadow"]
+    Test -->|"pass"| Merge["Merge to main<br/>purify Malkuth"]
+    Test -->|"fail"| Revert["Revert, retry smaller"]
+    Revert --> Reap
+
+    style Start fill:#e53e3e,stroke:#9b2c2c,color:#fff
+    style Reap fill:#1a1a2e,stroke:#e94560,color:#fff
+    style Archive fill:#2d1b4e,stroke:#9f7aea,color:#fff
+    style Merge fill:#48bb78,stroke:#276749,color:#fff
+```
+
+**Key properties:**
+- Never runs on main — always in a shadow worktree (Sitra Achra)
+- Maveth (the reaper) can only delete, never write
+- Every deletion archived in Sheol so Genesis never rebuilds dead patterns
+- "Risky" deletions require human approval
+- Triggered by Chayah when health is good but codebase is growing
+
+### When to use
+
+When the codebase is healthy but bloated. Dead code > 10% of functions. Unused dependencies accumulating. Monolithic files growing past 500 lines. Genesis has been building — now it's time for Revelation to purge.
+
+---
+
+## 9. Azerate — The Shadow Creator
+
+**The Qliphothic Tool-Builder**
+
+### Symbolism
+
+In anti-cosmic Kabbalistic tradition, Azerate is the eleven-headed dragon of the Qliphoth — the shadow side of the Tree of Life. Where the Sefirot channel divine light downward into order, the Qliphoth channel creative chaos upward into new forms. Azerate doesn't destroy — it creates from the other side. It builds what the ordered system would never authorize.
+
+### What it does
+
+A proactive observer that watches your behavior (shell history, git patterns, build metrics), identifies friction, and builds developer tools without being asked. Outputs as PRs for human approval.
+
+```mermaid
+flowchart TB
+    subgraph Observe["The Watcher"]
+        SH[".bash_history"]
+        GL["git log"]
+        CI["build metrics"]
+        PT["test timing"]
+    end
+
+    Observe --> Friction["Friction Analyzer<br/>rank inefficiencies"]
+    Friction --> Propose["Proposer<br/>what tool to build?"]
+    Propose --> Forge["The Forge<br/>build the tool"]
+    Forge --> PR["Pull Request<br/>present to human"]
+    PR -->|"approved"| Main["Merged"]
+    PR -->|"rejected"| Memory["Azerate remembers:<br/>don't rebuild this"]
+
+    style Observe fill:#0d1117,stroke:#58a6ff,color:#fff
+    style Forge fill:#4a1a1a,stroke:#e94560,color:#fff
+    style PR fill:#ffd700,stroke:#b8860b,color:#000
+    style Memory fill:#2d1b4e,stroke:#9f7aea,color:#fff
+```
+
+**Key properties:**
+- Proactive — doesn't wait for commands, observes and acts
+- PR-only output — never commits directly, always opens a PR for review
+- Tool scope only — builds scripts and infrastructure, never modifies product code
+- Rejection memory — learns from closed PRs, won't rebuild what was rejected
+- Cool-down — max 1 PR per day to prevent overwhelming
+
+### When to use
+
+Runs on a schedule (nightly) or dispatched by Ein Sof after Genesis completes a cycle. The Promethean doesn't wait to be needed — it watches, identifies what's missing, and delivers fire.
+
+---
+
 ## Integration Architecture
 
 ### The Three Integration Mechanisms
@@ -625,8 +762,26 @@ flowchart TB
     MU -.->|"background job"| Chayah_L
     MU -.->|"background job"| Nefesh_L
     MU -.->|"background job"| Nitzotz_L
+    MU -.->|"background job"| Rev_L
+    MU -.->|"background job"| Az_L
     OL ==>|"subgraph embed"| Nitzotz_L
     OL -.->|"direct invoke"| Nefesh_L
+    OL -.->|"dispatch purge"| Rev_L
+
+    subgraph Rev_L["Revelation (shadow worktree)"]
+        RV["seeker → shevirah → maveth → sheol"]
+    end
+
+    subgraph Az_L["Azerate (proactive)"]
+        AZ["watcher → friction → forge → PR"]
+    end
+
+    subgraph Otiyot_L["Otiyot (foundation)"]
+        OTL["immutable primitives<br/>+ Tzeruf validation"]
+    end
+
+    Nitzotz_L -.->|"spells with"| Otiyot_L
+    Rev_L -.->|"extracts letters to"| Otiyot_L
 
     style EinSof_L fill:#1a1a2e,stroke:#e94560,color:#fff
     style Chayah_L fill:#0d3320,stroke:#48bb78,color:#fff
@@ -634,24 +789,41 @@ flowchart TB
     style Nefesh_L fill:#300d0d,stroke:#e53e3e,color:#fff
     style Implementation fill:#21262d,stroke:#ffd700,color:#fff
     style Review fill:#21262d,stroke:#ffd700,color:#fff
+    style Rev_L fill:#3c1a1a,stroke:#e53e3e,color:#fff
+    style Az_L fill:#4a1a1a,stroke:#e94560,color:#fff
+    style Otiyot_L fill:#ffd700,stroke:#b8860b,color:#000
 ```
 
 ### Implementation order
 
 ```mermaid
 flowchart LR
-    A["Nitzotz<br/>(implemented ✓)"] --> S["Sefirot<br/>(enhances Nitzotz)"]
-    A --> O["Chayah<br/>(wraps Nitzotz)"]
-    A --> L["Nefesh<br/>(parallel complement)"]
-    S --> O2["Apply Sefirot to Nitzotz"]
-    O --> M["Ein Sof<br/>(spawns all)"]
-    L --> M
-    L --> F["Klipah<br/>(extends Nefesh)"]
+    A["1. Nitzotz ✓"] --> S["2. Sefirot ✓"]
+    S --> O["3. Chayah ✓"]
+    O --> L["4. Nefesh ✓"]
+    L --> M["5. Ein Sof ✓"]
+    L --> F["6. Klipah ✓"]
+    F --> OT["7. Otiyot"]
+    M --> REV["8. Revelation"]
+    M --> AZ["9. Azerate"]
+
+    style A fill:#48bb78,stroke:#276749,color:#fff
+    style S fill:#48bb78,stroke:#276749,color:#fff
+    style O fill:#48bb78,stroke:#276749,color:#fff
+    style L fill:#48bb78,stroke:#276749,color:#fff
+    style M fill:#48bb78,stroke:#276749,color:#fff
+    style F fill:#48bb78,stroke:#276749,color:#fff
+    style OT fill:#ffd700,stroke:#b8860b,color:#000
+    style REV fill:#e53e3e,stroke:#9b2c2c,color:#fff
+    style AZ fill:#9f7aea,stroke:#553c9a,color:#fff
 ```
 
 1. **Nitzotz** — implemented. The execution engine everything else builds on.
-2. **Sefirot** — next. Enhances Nitzotz's subgraphs with balanced forces. Independent of other patterns.
-3. **Chayah** — after Sefirot. Wraps Nitzotz in a continuous loop. Needs Nitzotz + fitness function.
-4. **Nefesh** — parallel to Chayah. Independent parallel swarm. Needs Nitzotz for comparison.
-5. **Ein Sof** — after Chayah + Nefesh. The capstone that unifies everything. Needs all other patterns.
-6. **Klipah** — after Nefesh. Extends Nefesh's Sovereign with graduated, dependency-aware dispatch.
+2. **Sefirot** — implemented. Enhances Nitzotz's subgraphs with balanced forces.
+3. **Chayah** — implemented. Wraps Nitzotz in a continuous evolution loop.
+4. **Nefesh** — implemented. Independent parallel swarm.
+5. **Ein Sof** — implemented. The meta-orchestrator that spawns all patterns.
+6. **Klipah** — implemented. Graduated dispatch inside Nefesh.
+7. **Otiyot** — planned. Immutable atomic primitives — the alphabet.
+8. **Revelation** — planned. Dead code purging in the Sitra Achra.
+9. **Azerate** — planned. Proactive tool-builder from the Qliphoth.
