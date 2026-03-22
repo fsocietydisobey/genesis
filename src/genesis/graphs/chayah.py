@@ -20,7 +20,7 @@ from genesis.nodes.evolution.triage import build_triage_node
 from genesis.tools.git_tools import git_checkpoint, git_diff_files, git_revert, is_self_modification
 from genesis.log import get_logger
 
-log = get_logger("ouroboros")
+log = get_logger("chayah")
 
 
 async def _init_node(state: OrchestratorState) -> dict:
@@ -208,7 +208,7 @@ def _after_commit(state: OrchestratorState) -> str:
     return "assess"  # Loop back
 
 
-async def build_ouroboros_graph(config: OrchestratorConfig):
+async def build_chayah_graph(config: OrchestratorConfig):
     """Build and compile the Chayah evolution loop graph.
 
     Args:
@@ -227,7 +227,7 @@ async def build_ouroboros_graph(config: OrchestratorConfig):
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
     ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
-    db_path = str(data_dir / "ouroboros_checkpoints.db")
+    db_path = str(data_dir / "chayah_checkpoints.db")
 
     conn = await aiosqlite.connect(db_path)
     await conn.execute("PRAGMA journal_mode=WAL")

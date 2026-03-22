@@ -9,7 +9,7 @@ from genesis.nodes.sefirot.gevurah import build_gevurah_node
 from genesis.nodes.sefirot.hod import build_hod_node
 from genesis.nodes.human_review import build_human_review_node
 from genesis.nodes.pipeline.implement import build_implement_node
-from genesis.nodes.ein_sof_dispatch import build_muther_dispatch_node
+from genesis.nodes.ein_sof_dispatch import build_ein_sof_dispatch_node
 from genesis.nodes.sefirot.netzach import build_netzach_node
 from genesis.nodes.pipeline.research import build_research_node
 from genesis.nodes.swarm.sovereign import build_sovereign_node
@@ -31,7 +31,7 @@ __all__ = [
     "build_hod_node",
     "build_human_review_node",
     "build_implement_node",
-    "build_muther_dispatch_node",
+    "build_ein_sof_dispatch_node",
     "build_netzach_node",
     "build_research_node",
     "build_sovereign_node",

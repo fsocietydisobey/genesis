@@ -21,11 +21,11 @@ from genesis.core.fitness import assess_health
 from genesis.core.resource_control import GlobalBudget
 from genesis.core.state import OrchestratorState
 from genesis.nodes.evolution.assess import build_assess_node
-from genesis.nodes.ein_sof_dispatch import build_muther_dispatch_node
+from genesis.nodes.ein_sof_dispatch import build_ein_sof_dispatch_node
 from genesis.tools.git_tools import git_checkpoint, git_revert
 from genesis.log import get_logger
 
-log = get_logger("muther")
+log = get_logger("ein_sof")
 
 
 async def _init_node(state: OrchestratorState) -> dict:
@@ -37,7 +37,7 @@ async def _init_node(state: OrchestratorState) -> dict:
 
     return {
         "global_budget": budget.to_dict(),
-        "muther_cycle": 0,
+        "ein_sof_cycle": 0,
         "active_entities": [],
         "history": history + ["ein_sof: initialized — Tzimtzum (contraction) applied"],
     }
@@ -57,11 +57,11 @@ async def _execute_pattern_node(state: OrchestratorState) -> dict:
     decision = state.get("dispatch_decision") or {}
     pattern = decision.get("pattern", "cryosleep")
     task_desc = decision.get("task_description", "")
-    cycle = state.get("muther_cycle", 0) + 1
+    cycle = state.get("ein_sof_cycle", 0) + 1
 
     if pattern == "cryosleep":
         return {
-            "muther_cycle": cycle,
+            "ein_sof_cycle": cycle,
             "history": history + [f"ein_sof(cycle {cycle}): cryosleep — nothing to do"],
         }
 
@@ -82,13 +82,13 @@ async def _execute_pattern_node(state: OrchestratorState) -> dict:
         result = await run_claude(prompt, timeout=600, permission_mode="acceptEdits")
         return {
             "implementation_result": result,
-            "muther_cycle": cycle,
+            "ein_sof_cycle": cycle,
             "history": history + [f"ein_sof(cycle {cycle}): {pattern} completed"],
         }
     except Exception as e:
         log.error("cycle %d: %s execution failed — %s", cycle, pattern, e)
         return {
-            "muther_cycle": cycle,
+            "ein_sof_cycle": cycle,
             "history": history + [f"ein_sof(cycle {cycle}): {pattern} failed — {e}"],
         }
 
@@ -96,7 +96,7 @@ async def _execute_pattern_node(state: OrchestratorState) -> dict:
 async def _directive_check_node(state: OrchestratorState) -> dict:
     """Check the changes against DIRECTIVES.md (Special Order 937)."""
     history = list(state.get("history", []))
-    cycle = state.get("muther_cycle", 0)
+    cycle = state.get("ein_sof_cycle", 0)
 
     # Get the diff
     proc = await asyncio.create_subprocess_exec(
@@ -154,7 +154,7 @@ def _after_dispatch(state: OrchestratorState) -> str:
 
 def _after_directive(state: OrchestratorState) -> str:
     """Continue looping or exit."""
-    cycle = state.get("muther_cycle", 0)
+    cycle = state.get("ein_sof_cycle", 0)
     max_cycles = 20  # Ein Sof's own cycle limit
 
     if cycle >= max_cycles:
@@ -167,7 +167,7 @@ def _after_directive(state: OrchestratorState) -> str:
     return "assess"  # Loop back
 
 
-async def build_muther_graph(config: OrchestratorConfig):
+async def build_ein_sof_graph(config: OrchestratorConfig):
     """Build and compile the Ein Sof meta-orchestrator graph.
 
     Args:
@@ -186,7 +186,7 @@ async def build_muther_graph(config: OrchestratorConfig):
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
     ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
-    db_path = str(data_dir / "muther_checkpoints.db")
+    db_path = str(data_dir / "ein_sof_checkpoints.db")
 
     conn = await aiosqlite.connect(db_path)
     await conn.execute("PRAGMA journal_mode=WAL")
@@ -196,7 +196,7 @@ async def build_muther_graph(config: OrchestratorConfig):
 
     model = get_classify_model(config)
     assess_node = build_assess_node()
-    dispatch_node = build_muther_dispatch_node(model)
+    dispatch_node = build_ein_sof_dispatch_node(model)
 
     graph = StateGraph(OrchestratorState)
 

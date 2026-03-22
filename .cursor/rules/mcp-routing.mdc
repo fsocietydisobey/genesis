@@ -12,8 +12,11 @@ You have access to MCP tools from the `genesis` server. Use them when the situat
 When the user starts a message with these keywords, ALWAYS use the corresponding MCP tool:
 
 ### Genesis pipeline tools
-- **"aril ..."** → `chain_aril(task_description)` — Nitzotz pipeline with Sefirot balanced forces. Everything after "aril" is the task.
+- **"nitzotz ..."** or **"aril ..."** → `chain_nitzotz(task_description)` — Nitzotz pipeline with Sefirot balanced forces. Everything after the keyword is the task.
 - **"graph ..."** → `chain(task_description)` — Supervisor pipeline. Everything after "graph" is the task.
+- **"chayah start"** or **"ouroboros start"** → `chain_chayah()` — Chayah continuous evolution loop.
+- **"nefesh ..."** or **"swarm ..."** → `swarm(goal)` — Nefesh parallel dispatch. Everything after the keyword is the goal.
+- **"ein sof start"** → `chain_ein_sof()` — Ein Sof meta-orchestrator.
 - **"status"** → `status()` — show all jobs. If a job ID follows, use `status(job_id="...")`.
 - **"approve"** → `approve(job_id="...")` — approve the most recent paused job.
 - **"reject ..."** → `approve(job_id="...", feedback="...")` — reject with the text after "reject" as feedback.
@@ -24,11 +27,6 @@ When the user starts a message with these keywords, ALWAYS use the corresponding
 - **"research ..."** or **"deep dive ..."** → `research(question)` — Gemini CLI exploration
 - **"plan ..."** or **"design ..."** or **"architect ..."** → `architect(goal)` — Claude CLI design
 - **"classify ..."** → `classify(task_description)` — fast tier classification
-
-### Experimental pipeline tools
-- **"ouroboros start"** → `chain_ouroboros()` — Chayah continuous evolution loop
-- **"leviathan ..."** or **"swarm ..."** → `swarm(goal)` — Nefesh parallel dispatch
-- **"muther start"** or **"ein sof start"** → `chain_muther()` — Ein Sof meta-orchestrator
 
 ### System name
 The full system is called **Genesis**. It encompasses all patterns: Nitzotz, Sefirot, Chayah, Nefesh, Klipah, and Ein Sof. Reference docs: `docs/genesis-commands.md` and `docs/usage-guide.md`.
@@ -47,7 +45,9 @@ The full system is called **Genesis**. It encompasses all patterns: Nitzotz, Sef
 - The task is complex enough to benefit from multi-model orchestration
 
 **Examples:**
-- `aril add rate limiting to the API endpoints` → `chain_aril("add rate limiting to the API endpoints")`
-- `swarm fix all pyright errors` → `swarm("fix all pyright errors")`
+- `nitzotz add rate limiting to the API endpoints` → `chain_nitzotz("add rate limiting to the API endpoints")`
+- `nefesh fix all pyright errors` → `swarm("fix all pyright errors")`
+- `chayah start` → `chain_chayah()`
+- `ein sof start` → `chain_ein_sof()`
 - `approve` → approve the most recent paused job
 - `reject use Redis instead of Memcached` → reject with that feedback

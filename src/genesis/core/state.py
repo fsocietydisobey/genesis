@@ -166,11 +166,11 @@ class OrchestratorState(TypedDict, total=False):
     # --- Klipah (graduated dispatch) ---
     current_generation: int  # Which generation is being dispatched
     generation_results: Annotated[list[dict[str, Any]], operator.add]  # Per-generation results
-    dispatch_mode: str  # "flat" | "fibonacci"
+    dispatch_mode: str  # "flat" | "klipah"
 
     # --- Ein Sof (meta-orchestrator) ---
     active_entities: list[dict[str, Any]]  # Running entities tracked by Ein Sof
     dispatch_decision: dict[str, Any]  # DispatchDecision as dict
     directive_result: dict[str, Any]  # DirectiveResult as dict
     global_budget: dict[str, Any]  # GlobalBudget as dict
-    muther_cycle: int  # Ein Sof's own cycle count
+    ein_sof_cycle: int  # Ein Sof's own cycle count

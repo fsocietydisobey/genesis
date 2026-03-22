@@ -63,7 +63,7 @@ scripts/             # Daemon scripts (ouroboros.sh, muther.sh)
 ### Graphs
 - Each graph has its own checkpointer (AsyncSqliteSaver).
 - Subgraphs compile without checkpointers — the parent handles persistence.
-- `chain_aril` triggers Nitzotz. `swarm` triggers Nefesh. `chain_ouroboros` triggers Chayah. `chain_muther` triggers Ein Sof.
+- `chain_nitzotz` triggers Nitzotz. `swarm` triggers Nefesh. `chain_chayah` triggers Chayah. `chain_ein_sof` triggers Ein Sof.
 
 ### CLI subprocesses
 - All subprocess calls go through `run_cli()` in `cli/cli.py`.
@@ -74,12 +74,12 @@ scripts/             # Daemon scripts (ouroboros.sh, muther.sh)
 
 | Code name | Kabbalistic name | What it is |
 |---|---|---|
-| `chain_aril` | **Nitzotz** (Divine Sparks) | 4-phase pipeline with Sefirot balanced forces |
+| `chain_nitzotz` | **Nitzotz** (Divine Sparks) | 4-phase pipeline with Sefirot balanced forces |
 | (inside Nitzotz) | **Sefirot** (Emanations) | 6 balanced force nodes: Gevurah, Chesed, Tiferet, Hod, Netzach, Yesod |
-| `chain_ouroboros` | **Chayah** (Living Soul) | Continuous evolution loop |
+| `chain_chayah` | **Chayah** (Living Soul) | Continuous evolution loop |
 | `swarm` | **Nefesh** (Animal Soul) | Parallel swarm dispatch |
-| (inside Nefesh) | **Klipah** (Shells) | Fibonacci graduated dispatch mode |
-| `chain_muther` | **Ein Sof** (The Infinite) | Meta-orchestrator |
+| (inside Nefesh) | **Klipah** (Shells) | Graduated dispatch mode |
+| `chain_ein_sof` | **Ein Sof** (The Infinite) | Meta-orchestrator |
 | The system | **Genesis** | Where intent becomes reality |
 
 ## Things to avoid

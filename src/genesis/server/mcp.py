@@ -2,8 +2,8 @@
 
 Loads .env automatically so API keys don't need to be in MCP config.
 
-13 MCP tools: health, research, architect, classify, chain, chain_aril,
-chain_ouroboros, swarm, chain_muther, status, approve, history, rewind.
+13 MCP tools: health, research, architect, classify, chain, chain_nitzotz,
+chain_chayah, swarm, chain_ein_sof, status, approve, history, rewind.
 """
 
 import asyncio
@@ -23,11 +23,11 @@ load_dotenv(_project_root / ".env")
 from genesis.cli.prompts import build_prompt
 from genesis.cli.runners import run_claude, run_gemini
 from genesis.config import load_config, Router
-from genesis.graphs.nitzotz import build_aril_graph
-from genesis.graphs.nefesh import build_leviathan_graph
-from genesis.graphs.ein_sof import build_muther_graph
+from genesis.graphs.nitzotz import build_nitzotz_graph
+from genesis.graphs.nefesh import build_nefesh_graph
+from genesis.graphs.ein_sof import build_ein_sof_graph
 from genesis.graphs.supervisor import build_orchestrator_graph
-from genesis.graphs.chayah import build_ouroboros_graph
+from genesis.graphs.chayah import build_chayah_graph
 from genesis.server.jobs import Job, create_job, format_job_status, get_job, list_jobs, notify_job_update
 from genesis.log import get_logger, setup_logging
 from genesis.prompts import ARCHITECT_SYSTEM_PROMPT, RESEARCH_SYSTEM_PROMPT
@@ -43,14 +43,14 @@ _server_start_time = time.time()
 
 _orchestrator_graph = None
 _checkpointer = None
-_aril_graph = None
-_aril_checkpointer = None
-_ouroboros_graph = None
-_ouroboros_checkpointer = None
-_leviathan_graph = None
-_leviathan_checkpointer = None
-_muther_graph = None
-_muther_checkpointer = None
+_nitzotz_graph = None
+_nitzotz_checkpointer = None
+_chayah_graph = None
+_chayah_checkpointer = None
+_nefesh_graph = None
+_nefesh_checkpointer = None
+_ein_sof_graph = None
+_ein_sof_checkpointer = None
 
 
 async def _get_graph():
@@ -61,36 +61,36 @@ async def _get_graph():
     return _orchestrator_graph
 
 
-async def _get_aril_graph():
+async def _get_nitzotz_graph():
     """Get or build the Nitzotz graph (lazy async singleton)."""
-    global _aril_graph, _aril_checkpointer
-    if _aril_graph is None:
-        _aril_graph, _aril_checkpointer = await build_aril_graph(config)
-    return _aril_graph
+    global _nitzotz_graph, _nitzotz_checkpointer
+    if _nitzotz_graph is None:
+        _nitzotz_graph, _nitzotz_checkpointer = await build_nitzotz_graph(config)
+    return _nitzotz_graph
 
 
-async def _get_ouroboros_graph():
+async def _get_chayah_graph():
     """Get or build the Chayah graph (lazy async singleton)."""
-    global _ouroboros_graph, _ouroboros_checkpointer
-    if _ouroboros_graph is None:
-        _ouroboros_graph, _ouroboros_checkpointer = await build_ouroboros_graph(config)
-    return _ouroboros_graph
+    global _chayah_graph, _chayah_checkpointer
+    if _chayah_graph is None:
+        _chayah_graph, _chayah_checkpointer = await build_chayah_graph(config)
+    return _chayah_graph
 
 
-async def _get_leviathan_graph():
+async def _get_nefesh_graph():
     """Get or build the Nefesh graph (lazy async singleton)."""
-    global _leviathan_graph, _leviathan_checkpointer
-    if _leviathan_graph is None:
-        _leviathan_graph, _leviathan_checkpointer = await build_leviathan_graph(config)
-    return _leviathan_graph
+    global _nefesh_graph, _nefesh_checkpointer
+    if _nefesh_graph is None:
+        _nefesh_graph, _nefesh_checkpointer = await build_nefesh_graph(config)
+    return _nefesh_graph
 
 
-async def _get_muther_graph():
+async def _get_ein_sof_graph():
     """Get or build the Ein Sof graph (lazy async singleton)."""
-    global _muther_graph, _muther_checkpointer
-    if _muther_graph is None:
-        _muther_graph, _muther_checkpointer = await build_muther_graph(config)
-    return _muther_graph
+    global _ein_sof_graph, _ein_sof_checkpointer
+    if _ein_sof_graph is None:
+        _ein_sof_graph, _ein_sof_checkpointer = await build_ein_sof_graph(config)
+    return _ein_sof_graph
 
 
 # Create the MCP server
@@ -254,7 +254,7 @@ async def chain(task_description: str, context: str = "", thread_id: str = "") -
 
 
 @mcp.tool()
-async def chain_aril(task_description: str, context: str = "", thread_id: str = "") -> str:
+async def chain_nitzotz(task_description: str, context: str = "", thread_id: str = "") -> str:
     """Start the Nitzotz pipeline (Genesis) in the background.
 
     Nitzotz runs a phased pipeline: research → planning → implementation → review.
@@ -272,8 +272,8 @@ async def chain_aril(task_description: str, context: str = "", thread_id: str = 
         thread_id: Optional thread ID to continue a previous chain.
     """
     t_entry = time.time()
-    log.info("chain_aril() called — task: %s", task_description[:80])
-    graph = await _get_aril_graph()
+    log.info("chain_nitzotz() called — task: %s", task_description[:80])
+    graph = await _get_nitzotz_graph()
     log.info("Nitzotz graph ready (%.1fs)", time.time() - t_entry)
 
     job = create_job(thread_id=thread_id if thread_id else None)
@@ -296,7 +296,7 @@ async def chain_aril(task_description: str, context: str = "", thread_id: str = 
                         continue
                     if isinstance(state_update, dict):
                         job.result.update(state_update)
-                    message = _build_aril_progress_message(node_name, state_update)
+                    message = _build_nitzotz_progress_message(node_name, state_update)
                     job.progress.append(f"[{node_elapsed:.1f}s] {message}")
                     log.info("job %s [%.1fs]: %s", job.job_id, node_elapsed, message)
                     node_start = time.time()
@@ -338,7 +338,7 @@ async def chain_aril(task_description: str, context: str = "", thread_id: str = 
 
 
 @mcp.tool()
-async def chain_ouroboros(max_cycles: int = 50, budget: float = 5.0) -> str:
+async def chain_chayah(max_cycles: int = 50, budget: float = 5.0) -> str:
     """Start the Chayah continuous evolution loop.
 
     Autonomously improves the codebase: assess health → triage → execute → validate
@@ -349,8 +349,8 @@ async def chain_ouroboros(max_cycles: int = 50, budget: float = 5.0) -> str:
         max_cycles: Maximum evolution cycles before stopping (default 50).
         budget: Maximum estimated cost in USD (default 5.0).
     """
-    log.info("chain_ouroboros() called — max_cycles=%d, budget=$%.2f", max_cycles, budget)
-    graph = await _get_ouroboros_graph()
+    log.info("chain_chayah() called — max_cycles=%d, budget=$%.2f", max_cycles, budget)
+    graph = await _get_chayah_graph()
 
     job = create_job()
     graph_config = {"configurable": {"thread_id": job.thread_id}}
@@ -405,7 +405,7 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
         max_agents: Maximum parallel workers (default 10).
     """
     log.info("swarm() called — goal: %s, budget=$%.2f, max_agents=%d", goal[:80], budget, max_agents)
-    graph = await _get_leviathan_graph()
+    graph = await _get_nefesh_graph()
 
     job = create_job()
     graph_config = {"configurable": {"thread_id": job.thread_id}}
@@ -456,7 +456,7 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
 
 
 @mcp.tool()
-async def chain_muther(budget: float = 10.0) -> str:
+async def chain_ein_sof(budget: float = 10.0) -> str:
     """Start Ein Sof — the autonomous meta-orchestrator.
 
     Monitors repository health, decides which pattern to spawn (Chayah for evolution,
@@ -466,8 +466,8 @@ async def chain_muther(budget: float = 10.0) -> str:
     Args:
         budget: Maximum daily cost in USD (default 10.0).
     """
-    log.info("chain_muther() called — budget=$%.2f", budget)
-    graph = await _get_muther_graph()
+    log.info("chain_ein_sof() called — budget=$%.2f", budget)
+    graph = await _get_ein_sof_graph()
 
     job = create_job()
     graph_config = {"configurable": {"thread_id": job.thread_id}}
@@ -488,7 +488,7 @@ async def chain_muther(budget: float = 10.0) -> str:
                         continue
                     if isinstance(state_update, dict):
                         job.result.update(state_update)
-                    cycle = state_update.get("muther_cycle", "") if isinstance(state_update, dict) else ""
+                    cycle = state_update.get("ein_sof_cycle", "") if isinstance(state_update, dict) else ""
                     message = f"Ein Sof [{node_name}]"
                     if cycle:
                         message += f" cycle {cycle}"
@@ -766,7 +766,7 @@ def _build_progress_message(node_name: str, state_update: dict) -> str:
     return f"{node_name}: completed"
 
 
-def _build_aril_progress_message(node_name: str, state_update: dict) -> str:
+def _build_nitzotz_progress_message(node_name: str, state_update: dict) -> str:
     """Build a phase-aware progress message for Nitzotz graph updates."""
     if state_update is None:
         state_update = {}
@@ -864,11 +864,11 @@ def _format_graph_result(state: dict) -> str:
 
 async def _cleanup():
     """Close checkpointer connections on shutdown."""
-    global _checkpointer, _aril_checkpointer, _ouroboros_checkpointer, _leviathan_checkpointer, _muther_checkpointer
+    global _checkpointer, _nitzotz_checkpointer, _chayah_checkpointer, _nefesh_checkpointer, _ein_sof_checkpointer
     for name, cp in [
-        ("option-b", _checkpointer), ("aril", _aril_checkpointer),
-        ("ouroboros", _ouroboros_checkpointer), ("leviathan", _leviathan_checkpointer),
-        ("muther", _muther_checkpointer),
+        ("supervisor", _checkpointer), ("nitzotz", _nitzotz_checkpointer),
+        ("chayah", _chayah_checkpointer), ("nefesh", _nefesh_checkpointer),
+        ("ein_sof", _ein_sof_checkpointer),
     ]:
         if cp is not None:
             try:
@@ -877,10 +877,10 @@ async def _cleanup():
             except Exception as e:
                 log.warning("%s checkpointer cleanup failed: %s", name, e)
     _checkpointer = None
-    _aril_checkpointer = None
-    _ouroboros_checkpointer = None
-    _leviathan_checkpointer = None
-    _muther_checkpointer = None
+    _nitzotz_checkpointer = None
+    _chayah_checkpointer = None
+    _nefesh_checkpointer = None
+    _ein_sof_checkpointer = None
 
 
 def main():

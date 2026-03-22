@@ -221,16 +221,65 @@ In the system, **Klipah** is graduated dispatch. Each generation is a shell wrap
 
 ```mermaid
 flowchart TB
-    G1["Gen 1 (innermost)<br/>1 agent — schema"] --> G2["Gen 2<br/>1 agent — API core"]
-    G2 --> G3["Gen 3<br/>2 agents — services"]
-    G3 --> G4["Gen 4<br/>3 agents — features"]
-    G4 --> G5["Gen 5 (outermost)<br/>5 agents — polish"]
+    subgraph G1["Gen 1 — 1 agent"]
+        W1["schema"]
+    end
 
-    G5 --> C["Reverse consolidation<br/>5 → 3 → 2 → 1<br/>Cracking the shells"]
+    subgraph G2["Gen 2 — 1 agent"]
+        W2["API core"]
+    end
+
+    subgraph G3["Gen 3 — 2 agents"]
+        W3a["auth service"]
+        W3b["user endpoints"]
+    end
+
+    subgraph G4["Gen 4 — 3 agents"]
+        W4a["frontend"]
+        W4b["payments"]
+        W4c["admin"]
+    end
+
+    subgraph G5["Gen 5 — 5 agents"]
+        W5a["cart"]
+        W5b["search"]
+        W5c["email"]
+        W5d["inventory"]
+        W5e["reports"]
+    end
+
+    W1 --> W2
+    W2 --> W3a
+    W2 --> W3b
+    W3a --> W4a
+    W3a --> W4b
+    W3b --> W4c
+    W4a --> W5a
+    W4a --> W5b
+    W4b --> W5c
+    W4c --> W5d
+    W4c --> W5e
+
+    subgraph Consolidation["Reverse consolidation"]
+        R3["3 reviewers merge"]
+        R2["2 reviewers merge"]
+        R1["1 final reviewer"]
+        R1 --> Done["Validated merge"]
+    end
+
+    W5a --> R3
+    W5b --> R3
+    W5c --> R3
+    W5d --> R3
+    W5e --> R3
+    R3 --> R2 --> R1
 
     style G1 fill:#ffd700,stroke:#b8860b,color:#000
+    style G2 fill:#ffd700,stroke:#b8860b,color:#000
+    style G3 fill:#4a90d9,stroke:#2c5282,color:#fff
+    style G4 fill:#48bb78,stroke:#276749,color:#fff
     style G5 fill:#e53e3e,stroke:#9b2c2c,color:#fff
-    style C fill:#48bb78,stroke:#276749,color:#fff
+    style Consolidation fill:#1a3c1a,stroke:#48bb78,color:#fff
 ```
 
 The Fibonacci sequence governs the growth because shells in nature grow this way — each layer proportional to the sum of the previous two.

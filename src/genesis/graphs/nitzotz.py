@@ -29,7 +29,7 @@ from genesis.subgraphs import (
 )
 from genesis.log import get_logger
 
-log = get_logger("aril")
+log = get_logger("nitzotz")
 
 # Default max steps per phase
 DEFAULT_MAX_STEPS = {
@@ -48,9 +48,9 @@ async def _load_memory_node(state: OrchestratorState) -> dict:
     memory_context = await get_recent_context(limit=3)
     if memory_context:
         log.info("injected memory context (%d chars)", len(memory_context))
-        history.append("aril: loaded past run context from memory")
+        history.append("nitzotz: loaded past run context from memory")
     else:
-        history.append("aril: no past run context found")
+        history.append("nitzotz: no past run context found")
 
     return {
         "memory_context": memory_context,
@@ -208,11 +208,11 @@ async def _save_memory_node(state: OrchestratorState) -> dict:
         log.warning("failed to save run memory: %s", e)
 
     return {
-        "history": list(history) + [f"aril: saved run memory (outcome={outcome})"],
+        "history": list(history) + [f"nitzotz: saved run memory (outcome={outcome})"],
     }
 
 
-async def build_aril_graph(config: OrchestratorConfig):
+async def build_nitzotz_graph(config: OrchestratorConfig):
     """Build and compile the Nitzotz parent graph with phase subgraphs.
 
     Uses the same persistent checkpointer as Option B. The four phase
@@ -235,7 +235,7 @@ async def build_aril_graph(config: OrchestratorConfig):
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
     ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
-    db_path = str(data_dir / "aril_checkpoints.db")
+    db_path = str(data_dir / "nitzotz_checkpoints.db")
 
     conn = await aiosqlite.connect(db_path)
     await conn.execute("PRAGMA journal_mode=WAL")

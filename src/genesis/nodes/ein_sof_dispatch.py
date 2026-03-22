@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from genesis.log import get_logger
 from genesis.core.state import OrchestratorState
 
-log = get_logger("node.muther_dispatch")
+log = get_logger("node.ein_sof_dispatch")
 
 DISPATCH_SYSTEM_PROMPT = """\
 You are the dispatch controller for an autonomous engineering system.
@@ -49,7 +49,7 @@ class DispatchDecision(BaseModel):
     )
 
 
-def build_muther_dispatch_node(model: BaseChatModel):
+def build_ein_sof_dispatch_node(model: BaseChatModel):
     """Build Ein Sof's pattern dispatch node.
 
     Args:

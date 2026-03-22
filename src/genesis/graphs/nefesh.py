@@ -15,12 +15,12 @@ from langgraph.types import Send
 
 from genesis.config import OrchestratorConfig, get_classify_model
 from genesis.core.state import OrchestratorState
-from genesis.nodes.swarm.sovereign import build_sovereign_node, sort_into_generations, fibonacci_budget
+from genesis.nodes.swarm.sovereign import build_sovereign_node, sort_into_generations, klipah_budget
 from genesis.nodes.swarm.agent import build_swarm_agent_node
 from genesis.nodes.swarm.merge import build_swarm_merge_node
 from genesis.log import get_logger
 
-log = get_logger("leviathan")
+log = get_logger("nefesh")
 
 
 def _fan_out(state: OrchestratorState) -> list[Send]:
@@ -44,7 +44,7 @@ def _fan_out(state: OrchestratorState) -> list[Send]:
         log.warning("no tasks in manifest — nothing to dispatch")
         return [Send("merge", {})]
 
-    if mode == "fibonacci" and any(t.get("dependencies") for t in tasks):
+    if mode == "klipah" and any(t.get("dependencies") for t in tasks):
         # Klipah mode: sort into generations
         generations = sort_into_generations(tasks)
         log.info("klipah dispatch: %d generations", len(generations))
@@ -52,7 +52,7 @@ def _fan_out(state: OrchestratorState) -> list[Send]:
         sends = []
         accumulated_context = ""
         for gen_idx, gen_tasks in enumerate(generations):
-            budget = fibonacci_budget(gen_idx)
+            budget = klipah_budget(gen_idx)
             for task in gen_tasks:
                 payload = {
                     "task": task.get("id", "unknown"),
@@ -89,7 +89,7 @@ def _fan_out(state: OrchestratorState) -> list[Send]:
     return sends
 
 
-async def build_leviathan_graph(config: OrchestratorConfig):
+async def build_nefesh_graph(config: OrchestratorConfig):
     """Build and compile the Nefesh parallel swarm graph.
 
     Args:
@@ -108,7 +108,7 @@ async def build_leviathan_graph(config: OrchestratorConfig):
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
     ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
-    db_path = str(data_dir / "leviathan_checkpoints.db")
+    db_path = str(data_dir / "nefesh_checkpoints.db")
 
     conn = await aiosqlite.connect(db_path)
     await conn.execute("PRAGMA journal_mode=WAL")
