@@ -4,5 +4,4 @@ __pycache__/
 .venv/
 *.db
 .ruff_cache/
-tasks/
 
