@@ -20,8 +20,8 @@ from genesis.core.directives import check_directives
 from genesis.core.fitness import assess_health
 from genesis.core.resource_control import GlobalBudget
 from genesis.core.state import OrchestratorState
-from genesis.nodes.assess import build_assess_node
-from genesis.nodes.muther_dispatch import build_muther_dispatch_node
+from genesis.nodes.evolution.assess import build_assess_node
+from genesis.nodes.ein_sof_dispatch import build_muther_dispatch_node
 from genesis.tools.git_tools import git_checkpoint, git_revert
 from genesis.log import get_logger
 

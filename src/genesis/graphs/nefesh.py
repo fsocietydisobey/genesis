@@ -15,9 +15,9 @@ from langgraph.types import Send
 
 from genesis.config import OrchestratorConfig, get_classify_model
 from genesis.core.state import OrchestratorState
-from genesis.nodes.sovereign import build_sovereign_node, sort_into_generations, fibonacci_budget
-from genesis.nodes.swarm_agent import build_swarm_agent_node
-from genesis.nodes.swarm_merge import build_swarm_merge_node
+from genesis.nodes.swarm.sovereign import build_sovereign_node, sort_into_generations, fibonacci_budget
+from genesis.nodes.swarm.agent import build_swarm_agent_node
+from genesis.nodes.swarm.merge import build_swarm_merge_node
 from genesis.log import get_logger
 
 log = get_logger("leviathan")

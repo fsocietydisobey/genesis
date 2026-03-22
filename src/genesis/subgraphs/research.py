@@ -10,8 +10,8 @@ needed. The loop runs until the critic passes or max steps are reached.
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, START, StateGraph
 
-from genesis.nodes.critic import build_critic_node
-from genesis.nodes.research import build_research_node
+from genesis.nodes.pipeline.critic import build_critic_node
+from genesis.nodes.pipeline.research import build_research_node
 from genesis.core.state import OrchestratorState
 
 

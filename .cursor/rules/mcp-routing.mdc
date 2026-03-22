@@ -1,0 +1,53 @@
+---
+description: Routes keywords to Genesis MCP tools
+alwaysApply: true
+---
+
+# Genesis — MCP Tool Routing
+
+You have access to MCP tools from the `genesis` server. Use them when the situation matches.
+
+## Keyword triggers
+
+When the user starts a message with these keywords, ALWAYS use the corresponding MCP tool:
+
+### Genesis pipeline tools
+- **"aril ..."** → `chain_aril(task_description)` — Nitzotz pipeline with Sefirot balanced forces. Everything after "aril" is the task.
+- **"graph ..."** → `chain(task_description)` — Supervisor pipeline. Everything after "graph" is the task.
+- **"status"** → `status()` — show all jobs. If a job ID follows, use `status(job_id="...")`.
+- **"approve"** → `approve(job_id="...")` — approve the most recent paused job.
+- **"reject ..."** → `approve(job_id="...", feedback="...")` — reject with the text after "reject" as feedback.
+- **"history"** → `history(thread_id="...")` — show checkpoint history for the most recent thread.
+- **"rewind ..."** → `rewind(thread_id="...", checkpoint_id="...")` — rewind to a checkpoint.
+
+### Direct tools
+- **"research ..."** or **"deep dive ..."** → `research(question)` — Gemini CLI exploration
+- **"plan ..."** or **"design ..."** or **"architect ..."** → `architect(goal)` — Claude CLI design
+- **"classify ..."** → `classify(task_description)` — fast tier classification
+
+### Experimental pipeline tools
+- **"ouroboros start"** → `chain_ouroboros()` — Chayah continuous evolution loop
+- **"leviathan ..."** or **"swarm ..."** → `swarm(goal)` — Nefesh parallel dispatch
+- **"muther start"** or **"ein sof start"** → `chain_muther()` — Ein Sof meta-orchestrator
+
+### System name
+The full system is called **Genesis**. It encompasses all patterns: Nitzotz, Sefirot, Chayah, Nefesh, Klipah, and Ein Sof. Reference docs: `docs/genesis-commands.md` and `docs/usage-guide.md`.
+
+## When to use MCP tools vs handle directly
+
+**Handle it yourself** (do NOT use MCP tools):
+- Simple bug fixes, small features, renaming, formatting
+- Tasks where you already know the answer and the code change is < 50 lines
+- Reading files, running commands, git operations
+
+**Use MCP tools** when:
+- The task genuinely needs deep research into unfamiliar domains
+- The implementation spans 3+ files and needs architectural planning
+- The user explicitly uses a keyword trigger
+- The task is complex enough to benefit from multi-model orchestration
+
+**Examples:**
+- `aril add rate limiting to the API endpoints` → `chain_aril("add rate limiting to the API endpoints")`
+- `swarm fix all pyright errors` → `swarm("fix all pyright errors")`
+- `approve` → approve the most recent paused job
+- `reject use Redis instead of Memcached` → reject with that feedback

@@ -15,8 +15,8 @@ from genesis.config import OrchestratorConfig, get_classify_model
 from genesis.core.evolution_memory import get_last_cycle_number, get_recent_cycles, log_cycle
 from genesis.core.fitness import assess_health
 from genesis.core.state import OrchestratorState
-from genesis.nodes.assess import build_assess_node
-from genesis.nodes.triage import build_triage_node
+from genesis.nodes.evolution.assess import build_assess_node
+from genesis.nodes.evolution.triage import build_triage_node
 from genesis.tools.git_tools import git_checkpoint, git_diff_files, git_revert, is_self_modification
 from genesis.log import get_logger
 

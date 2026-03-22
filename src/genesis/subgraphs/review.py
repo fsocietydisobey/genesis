@@ -13,7 +13,7 @@ from langgraph.graph import END, START, StateGraph
 
 from genesis.core.state import OrchestratorState
 from genesis.nodes.human_review import build_human_review_node
-from genesis.nodes.yesod import build_yesod_node
+from genesis.nodes.sefirot.yesod import build_yesod_node
 
 
 async def _set_review_handoff(state: OrchestratorState) -> dict:

@@ -11,9 +11,9 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, START, StateGraph
 
 from genesis.core.state import OrchestratorState
-from genesis.nodes.architect import build_architect_node
-from genesis.nodes.critic import build_critic_node
-from genesis.nodes.gevurah import build_gevurah_node
+from genesis.nodes.pipeline.architect import build_architect_node
+from genesis.nodes.pipeline.critic import build_critic_node
+from genesis.nodes.sefirot.gevurah import build_gevurah_node
 
 
 def _after_gevurah(state: OrchestratorState) -> str:

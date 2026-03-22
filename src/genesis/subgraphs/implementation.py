@@ -13,11 +13,11 @@ from langgraph.graph import END, START, StateGraph
 
 from genesis.core.guards import require_plan_approved
 from genesis.core.state import OrchestratorState
-from genesis.nodes.chesed import build_chesed_node
-from genesis.nodes.gevurah import build_gevurah_node
-from genesis.nodes.hod import build_hod_node
-from genesis.nodes.implement import build_implement_node
-from genesis.nodes.tiferet import build_tiferet_node
+from genesis.nodes.sefirot.chesed import build_chesed_node
+from genesis.nodes.sefirot.gevurah import build_gevurah_node
+from genesis.nodes.sefirot.hod import build_hod_node
+from genesis.nodes.pipeline.implement import build_implement_node
+from genesis.nodes.sefirot.tiferet import build_tiferet_node
 
 
 async def _guard_node(state: OrchestratorState) -> dict:
