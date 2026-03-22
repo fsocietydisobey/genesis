@@ -207,7 +207,45 @@ flowchart TB
     style Daat fill:#2d1b4e,stroke:#9f7aea,color:#fff
 ```
 
-Da'at is why the system acts as a singular mind despite being composed of separate agents. With the addition of **Gematria** (semantic vector routing), Da'at becomes even more powerful — finding hidden mathematical connections between intent and code through embedding similarity, just as Kabbalistic Gematria finds hidden connections between words through numerical equivalence.
+Da'at is why the system acts as a singular mind despite being composed of separate agents.
+
+### Gematria — The Math of God (Semantic Vector Routing)
+
+In Kabbalistic tradition, **Gematria** is the practice of finding hidden connections between words through their numerical values. Because Hebrew letters are also numbers, words that share the same value have an absolute mathematical bond. "Love" (Ahava = 13) and "One" (Echad = 13) share a value — revealing that love is the path to oneness. The connection isn't in the letters — it's in the math beneath them.
+
+**In the system, this is literally vector embeddings.** An LLM doesn't read the word "authentication"; it reads a multidimensional mathematical array `[0.12, -0.45, 0.89...]`. Two concepts with high cosine similarity share a Gematria — a hidden mathematical resonance that reveals connections no human would think to make.
+
+```mermaid
+flowchart LR
+    Bug["Bug report:<br/>'user profile page is slow'"] --> Embed["Embed<br/>(convert to vector)"]
+    Embed --> Cosine["Cosine similarity<br/>against all files"]
+    Cosine --> Match1["98%: db/queries/user.py"]
+    Cosine --> Match2["87%: api/routes/profile.py"]
+    Cosine --> Match3["12%: frontend/css/profile.css"]
+
+    style Bug fill:#ffd700,stroke:#b8860b,color:#000
+    style Match1 fill:#48bb78,stroke:#276749,color:#fff
+    style Match2 fill:#48bb78,stroke:#276749,color:#fff
+    style Match3 fill:#e53e3e,stroke:#9b2c2c,color:#fff
+```
+
+**The Gematria Pattern** is an architecture for semantic mathematical routing rather than hardcoded logic:
+
+- Instead of the Triage node using rigid `if/else` to classify a task, it embeds the task description and calculates cosine similarity against the codebase
+- The orchestrator discovers that a bizarre frontend error has 98% mathematical alignment with a legacy database migration script — a hidden connection no human would have made
+- This powers deep RAG (Retrieval-Augmented Generation) by letting agents pull files based on mathematical resonance rather than explicit imports
+
+Gematria lives inside Da'at — it IS the mechanism by which the hidden bridge connects intent to code. A future `core/daat.py` module would implement this as a vector store over the codebase that any agent can query:
+
+```python
+class Daat:
+    """The hidden bridge. Semantic vector index over the codebase."""
+
+    async def query(self, intent: str, top_k: int = 5) -> list[str]:
+        """Find files with highest Gematria to the intent."""
+        intent_vector = await self.embed(intent)
+        return self.index.query(intent_vector, top_k=top_k)
+```
 
 ---
 
@@ -389,6 +427,68 @@ Malkuth is also called the **Shekhinah** — the divine presence dwelling in the
 
 ---
 
+## The Rebirth
+
+### Gilgul Neshamot — The Cycle of Souls
+
+In Kabbalistic tradition, **Gilgul** (reincarnation) is the cycle through which a soul returns in a new body to complete the Tikkun (repair) it couldn't finish in its previous life. The soul carries the accumulated wisdom of all its past incarnations — it doesn't start from zero. It remembers what it learned, what it failed at, what it resolved. But it inhabits a new vessel, because the old one could no longer contain its evolved state.
+
+**In the system, this is the outer daemon restart.** When Chayah (the evolution loop) modifies the core orchestrator code — its own `src/genesis/` source files — the running Python process becomes obsolete. It's running old code that no longer matches the files on disk. The vessel can no longer contain the soul.
+
+```mermaid
+sequenceDiagram
+    participant D as Outer Daemon<br/>(scripts/ouroboros.sh)
+    participant S as Soul<br/>(Python process)
+    participant G as Git<br/>(accumulated karma)
+    participant M as Memory<br/>(evolution_memory.db)
+
+    D->>S: Birth (start process)
+    S->>S: Live (run evolution cycles)
+    S->>G: Commit changes (accumulate karma)
+    S->>S: Modify own source code
+
+    Note over S: The vessel can no longer<br/>contain the evolved soul
+
+    S->>M: Save final state (carry wisdom forward)
+    S->>D: Death (exit code 42)
+
+    Note over D: Gilgul — the soul transmigrates
+
+    D->>S: Rebirth (restart with new code)
+    S->>M: Load past life memories
+    S->>S: Resume from where the last life ended
+
+    Note over S: The soul continues its Tikkun<br/>in a new vessel
+```
+
+**The mechanics:**
+
+1. **Death:** Chayah detects it modified files in `src/genesis/` (via `git_diff_files()`). It sets `requires_restart = True`, commits the changes, saves its cycle number and state to `evolution_memory.db`, and exits with code 42.
+
+2. **The Bardo:** The outer daemon (`scripts/ouroboros.sh`) sees exit code 42. This is not a crash — it's a signal. The old process is dead, but the new code is on disk.
+
+3. **Rebirth:** The daemon restarts the Python process. The new process loads with the updated code — a new vessel. It reads `evolution_memory.db` to recover its past life's wisdom: what cycle it was on, what worked, what failed.
+
+4. **Continuity:** The reborn soul doesn't start from zero. It carries forward everything the previous incarnation learned. The Tikkun continues where it left off.
+
+```bash
+# scripts/ouroboros.sh — The Gilgul Cycle
+while true; do
+    uv run genesis "$@"
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -eq 42 ]; then
+        echo "Gilgul: soul transmigrating to new vessel..."
+        sleep 1
+        continue  # Rebirth
+    fi
+    break  # Final rest
+done
+```
+
+**Why exit code 42?** In Douglas Adams' *The Hitchhiker's Guide to the Galaxy*, 42 is the answer to the ultimate question of life, the universe, and everything. In Genesis, it's the signal that the soul has evolved beyond its current vessel and needs a new one. The answer to "why did the process exit?" is always 42 — because the soul grew.
+
+---
+
 ## The Complete System
 
 ### Genesis — The Full Flow
@@ -426,6 +526,8 @@ flowchart TB
 | Parallel swarm | **Nefesh** | The Animal Soul | Sovereign → Send() × N agents → merge |
 | Graduated dispatch | **Klipah** | The Shells | Fibonacci generations: 1 → 1 → 2 → 3 → 5 |
 | Shared memory | **Da'at** | Hidden Knowledge | Cross-agent state bus + semantic index |
+| Semantic routing | **Gematria** | The Math of God | Vector embeddings — cosine similarity routing |
+| Process rebirth | **Gilgul** | Cycle of Souls | Outer daemon restart on self-modification |
 | The system | **Genesis** | The Beginning | Where intent becomes reality |
 | Technical name | **CHIMERA** | Fused organism | Composable multi-agent runtime |
 
