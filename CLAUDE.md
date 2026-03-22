@@ -80,6 +80,9 @@ scripts/             # Daemon scripts (ouroboros.sh, muther.sh)
 | `swarm` | **Nefesh** (Animal Soul) | Parallel swarm dispatch |
 | (inside Nefesh) | **Klipah** (Shells) | Graduated dispatch mode |
 | `chain_ein_sof` | **Ein Sof** (The Infinite) | Meta-orchestrator |
+| `chain_revelation` | **Revelation** (The Unveiling) | Dead code purging in shadow worktree (planned) |
+| `chain_azerate` | **Azerate** (Shadow Dragon) | Proactive tool-builder from the Qliphoth (planned) |
+| (inside agents) | **Otiyot** (The Letters) | Immutable atomic primitives (planned) |
 | The system | **Genesis** | Where intent becomes reality |
 
 ## Things to avoid

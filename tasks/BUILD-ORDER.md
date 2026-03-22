@@ -17,6 +17,9 @@ flowchart LR
     O --> L["4. Nefesh ✓"]
     L --> M["5. Ein Sof ✓"]
     L --> F["6. Klipah ✓"]
+    F --> OT["7. Otiyot"]
+    M --> REV["8. Revelation"]
+    M --> AZ["9. Azerate"]
 
     style A fill:#48bb78,stroke:#276749,color:#fff
     style S fill:#48bb78,stroke:#276749,color:#fff
@@ -24,6 +27,9 @@ flowchart LR
     style L fill:#48bb78,stroke:#276749,color:#fff
     style M fill:#48bb78,stroke:#276749,color:#fff
     style F fill:#48bb78,stroke:#276749,color:#fff
+    style OT fill:#ffd700,stroke:#b8860b,color:#000
+    style REV fill:#e53e3e,stroke:#9b2c2c,color:#fff
+    style AZ fill:#9f7aea,stroke:#553c9a,color:#fff
 ```
 
 ---
@@ -163,13 +169,48 @@ flowchart LR
 
 ---
 
+---
+
+## 7. Otiyot — The Alphabet (PLANNED)
+
+**Status:** Not started
+
+**What it is:** Immutable atomic primitives — the sacred letters that agents MUST use. Prevents hallucination by restricting agents to tested, verified building blocks. Includes Tzeruf (combinatorial testing engine) that validates the alphabet is sound.
+
+**Task docs:** [planned/otiyot/](planned/otiyot/)
+
+---
+
+## 8. Revelation — The Unveiling (PLANNED)
+
+**Status:** Not started
+
+**What it is:** The purification pipeline. Enters the Sitra Achra (shadow git worktree) to find and destroy dead code, bloated dependencies, and stagnant abstractions. Genesis builds — Revelation purges.
+
+**Task docs:** [planned/revelation/](planned/revelation/)
+
+---
+
+## 9. Azerate — The Shadow Creator (PLANNED)
+
+**Status:** Not started
+
+**What it is:** The proactive, unsolicited tool-builder. The dark mirror of Genesis. Watches your behavior (shell history, git patterns, build metrics), identifies friction, and builds developer tools without being asked. Outputs as PRs for human approval.
+
+**Task docs:** [planned/azerate/](planned/azerate/)
+
+---
+
 ## Summary
 
-| # | Pattern | Designation | Status | MCP tool | Key file |
-|---|---|---|---|---|---|
-| 1 | Nitzotz | SPR-4 | **Done** | `chain_aril` | `graphs/aril.py` |
-| 2 | Sefirot | TFB | **Done** | (inside Nitzotz) | `nodes/gevurah.py`, `nodes/tiferet.py` |
-| 3 | Chayah | CLR | **Done** | `chain_ouroboros` | `graphs/ouroboros.py` |
-| 4 | Nefesh | PDE | **Done** | `swarm` | `graphs/leviathan.py` |
-| 5 | Ein Sof | HVD | **Done** | `chain_muther` | `graphs/muther.py` |
-| 6 | Klipah | PDE-F | **Done** | (inside `swarm`) | `nodes/sovereign.py` (extended) |
+| # | Pattern | Status | MCP tool | What it does |
+|---|---|---|---|---|
+| 1 | Nitzotz | **Done** | `chain_nitzotz` | 4-phase pipeline (research → plan → implement → review) |
+| 2 | Sefirot | **Done** | (inside Nitzotz) | Balanced forces (Gevurah, Chesed, Tiferet, Hod, Netzach, Yesod) |
+| 3 | Chayah | **Done** | `chain_chayah` | Continuous evolution loop |
+| 4 | Nefesh | **Done** | `swarm` | Parallel swarm dispatch |
+| 5 | Ein Sof | **Done** | `chain_ein_sof` | Meta-orchestrator |
+| 6 | Klipah | **Done** | (inside `swarm`) | Graduated Fibonacci dispatch |
+| 7 | Otiyot | Planned | — | Immutable atomic primitives |
+| 8 | Revelation | Planned | `chain_revelation` | Dead code purging |
+| 9 | Azerate | Planned | `chain_azerate` | Proactive tool-builder |

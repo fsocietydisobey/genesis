@@ -528,6 +528,9 @@ flowchart TB
 | Shared memory | **Da'at** | Hidden Knowledge | Cross-agent state bus + semantic index |
 | Semantic routing | **Gematria** | The Math of God | Vector embeddings — cosine similarity routing |
 | Process rebirth | **Gilgul** | Cycle of Souls | Outer daemon restart on self-modification |
+| Atomic primitives | **Otiyot** | The Letters | Immutable component library — the sacred alphabet |
+| Dead code purging | **Revelation** | The Unveiling | Enters the Sitra Achra to destroy dead Klipot |
+| Proactive tools | **Azerate** | Shadow Dragon | Watches from the Qliphoth, builds unauthorized tools |
 | The system | **Genesis** | The Beginning | Where intent becomes reality |
 | Technical name | **CHIMERA** | Fused organism | Composable multi-agent runtime |
 
