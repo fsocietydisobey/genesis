@@ -1,4 +1,4 @@
-"""Stress Tester (Severity) — adversarial validator that actively tries to break the code.
+"""Stress Tester — adversarial validator that actively tries to break the code.
 
 Unlike the passive critic (which scores and gates), Stress Tester is an active adversary.
 It doesn't ask "is this good enough?" — it asks "how can I break this?"

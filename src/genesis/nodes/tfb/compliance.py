@@ -1,4 +1,4 @@
-"""Compliance (Submission/Process) — deterministic formatting, linting, and documentation.
+"""Compliance — deterministic formatting, linting, and documentation.
 
 Pure restriction. No creative decisions. Runs ruff format, ruff check --fix,
 and reports what was changed. This is the "enforce the repo's laws" node.

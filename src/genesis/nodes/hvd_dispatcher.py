@@ -1,7 +1,7 @@
 """HVD dispatcher — selects which pattern to spawn.
 
 Reads the health report and spec progress, decides whether to spawn
-CLR (evolution), PDE (parallel swarm), or SPR-4 (single task).
+CLR (refinement), PDE (parallel dispatch), or SPR-4 (single task).
 """
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -19,20 +19,20 @@ Given the repository health state, decide which execution pattern to spawn.
 
 ## Available patterns
 
-- **chayah**: Continuous evolution loop. Best for steady improvement when
+- **clr**: Continuous refinement loop. Best for steady improvement when
   health is declining and spec items remain. Runs assess → triage → execute → validate → loop.
-- **nefesh**: Parallel swarm. Best for batch remediation — many independent issues
+- **pde**: Parallel dispatch. Best for batch remediation — many independent issues
   across different files (e.g. 20 pyright errors, 10 missing tests).
   Decomposes into N parallel agents.
-- **nitzotz**: Single-task pipeline. Best for a specific complex feature or focused fix.
+- **spr4**: Single-task pipeline. Best for a specific complex feature or focused fix.
   Runs research → plan → implement → review.
 - **idle**: Nothing to do. Health is good, spec is complete, or budget is exhausted.
 
 ## Decision rules
 
-1. If health has critical failures (tests failing) → nitzotz (focused fix)
-2. If > 5 independent issues across disjoint files → nefesh (batch parallel)
-3. If health declining + spec items remaining → chayah (steady evolution)
+1. If health has critical failures (tests failing) → spr4 (focused fix)
+2. If > 5 independent issues across disjoint files → pde (batch parallel)
+3. If health declining + spec items remaining → clr (steady refinement)
 4. If all healthy + spec complete → idle
 5. If budget exhausted → idle (regardless of state)
 """
@@ -41,11 +41,11 @@ Given the repository health state, decide which execution pattern to spawn.
 class DispatchDecision(BaseModel):
     """Structured dispatch decision."""
 
-    pattern: str = Field(description="chayah | nefesh | nitzotz | idle")
+    pattern: str = Field(description="clr | pde | spr4 | idle")
     reasoning: str = Field(description="Why this pattern was chosen")
     task_description: str = Field(
         default="",
-        description="Task for nitzotz, or goal for nefesh. Empty for chayah/idle.",
+        description="Task for spr4, or goal for pde. Empty for clr/idle.",
     )
 
 
@@ -60,23 +60,23 @@ def build_hvd_dispatcher_node(model: BaseChatModel):
     """
     structured_model = model.with_structured_output(DispatchDecision)
 
-    async def hvd_dispatch_node(state: OrchestratorState) -> dict:
+    async def dispatch_node(state: OrchestratorState) -> dict:
         """Decide which pattern to spawn."""
         history = list(state.get("history", []))
         health = state.get("health_report") or {}
         budget = state.get("global_budget") or {}
         task = state.get("task", "")
 
-        # If human provided a specific task, always use nitzotz
+        # If human provided a specific task, always use spr4
         if task:
-            log.info("human task provided — dispatching nitzotz")
+            log.info("human task provided — dispatching spr4")
             return {
                 "dispatch_decision": {
                     "pattern": "spr4",
                     "reasoning": "Human provided a specific task",
                     "task_description": task,
                 },
-                "history": history + [f"hvd: dispatching nitzotz — human task: {task[:60]}"],
+                "history": history + [f"hvd: dispatching spr4 — human task: {task[:60]}"],
             }
 
         # Check budget
@@ -124,4 +124,4 @@ def build_hvd_dispatcher_node(model: BaseChatModel):
             ],
         }
 
-    return hvd_dispatch_node
+    return dispatch_node

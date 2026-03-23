@@ -1,8 +1,8 @@
 """Implementation phase subgraph — TFB balanced forces.
 
 Full flow with expansion/restriction/synthesis:
-    guard → implement → gevurah (attack) → chesed (propose) → tiferet (arbitrate) → hod (format)
-    → tiferet decides: loop back to implement, or exit as ready_for_review
+    guard → implement → stress_tester (attack) → scope_analyzer (propose) → arbitrator (arbitrate) → compliance (format)
+    → arbitrator decides: loop back to implement, or exit as ready_for_review
 
 The guard node enforces the plan_approved invariant — implementation
 cannot proceed without an approved architecture plan.
@@ -38,13 +38,13 @@ def _after_guard(state: OrchestratorState) -> str:
     return "implement"
 
 
-def _after_tiferet(state: OrchestratorState) -> str:
+def _after_arbitrator(state: OrchestratorState) -> str:
     """Route based on Arbitrator's arbitration decision."""
-    tiferet = state.get("arbitration_decision") or {}
+    arb = state.get("arbitration_decision") or {}
     handoff = state.get("handoff_type", "")
 
     # Stress Tester blocker or Arbitrator says rework needed
-    if tiferet.get("needs_rework") or handoff == "tests_failing":
+    if arb.get("needs_rework") or handoff == "tests_failing":
         # Check step limit
         step = state.get("phase_step", 0)
         max_steps = state.get("max_phase_steps", 5)
@@ -61,8 +61,8 @@ def build_implementation_subgraph(
 ):
     """Build the implementation phase subgraph with TFB balanced forces.
 
-    Flow: guard → implement → gevurah → chesed → tiferet → hod → exit
-    With loop: if tiferet says needs_rework → back to implement
+    Flow: guard → implement → stress_tester → scope_analyzer → arbitrator → compliance → exit
+    With loop: if arbitrator says needs_rework → back to implement
 
     Args:
         critic_model: LangChain model for Stress Tester and ScopeAnalyzer (Haiku).
@@ -82,10 +82,10 @@ def build_implementation_subgraph(
 
     graph.add_node("guard", _guard_node)
     graph.add_node("implement", implement_node)
-    graph.add_node("gevurah", stress_tester_node)
-    graph.add_node("chesed", scope_analyzer_node)
-    graph.add_node("tiferet", arbitrator_node)
-    graph.add_node("hod", compliance_node)
+    graph.add_node("stress_tester", stress_tester_node)
+    graph.add_node("scope_analyzer", scope_analyzer_node)
+    graph.add_node("arbitrator", arbitrator_node)
+    graph.add_node("compliance", compliance_node)
 
     # Entry
     graph.add_edge(START, "guard")
@@ -96,18 +96,18 @@ def build_implementation_subgraph(
     )
 
     # Implementation → Stress Tester (attack) → ScopeAnalyzer (propose) → Arbitrator (arbitrate)
-    graph.add_edge("implement", "gevurah")
-    graph.add_edge("gevurah", "chesed")
-    graph.add_edge("chesed", "tiferet")
+    graph.add_edge("implement", "stress_tester")
+    graph.add_edge("stress_tester", "scope_analyzer")
+    graph.add_edge("scope_analyzer", "arbitrator")
 
     # Arbitrator decides: rework or proceed to Compliance
     graph.add_conditional_edges(
-        "tiferet",
-        _after_tiferet,
-        {"implement": "implement", "hod": "hod"},
+        "arbitrator",
+        _after_arbitrator,
+        {"implement": "implement", "compliance": "compliance"},
     )
 
     # Compliance (format) → exit
-    graph.add_edge("hod", END)
+    graph.add_edge("compliance", END)
 
     return graph.compile()

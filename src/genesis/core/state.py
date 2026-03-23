@@ -144,18 +144,18 @@ class OrchestratorState(TypedDict, total=False):
     integration_result: dict[str, Any]  # IntegrationResult as dict: passed, test_results, type_errors
     retry_history: Annotated[list[dict[str, Any]], operator.add]  # Tracks retry attempts for RetryController
 
-    # --- CLR (continuous evolution) ---
+    # --- CLR (continuous refinement) ---
     health_report: dict[str, Any]  # HealthReport as dict
     health_score: float  # Current health score (0.0-1.0)
     health_baseline: float  # Score at start of current cycle
-    cycle_count: int  # How many evolution cycles completed
+    cycle_count: int  # How many refinement cycles completed
     max_cycles: int  # Budget cap on cycles
     consecutive_no_improvement: int  # For convergence detection
     requires_restart: bool  # Self-modification detected
-    evolution_action: str  # "fix" | "refactor" | "feature" | "idle"
-    evolution_task: str  # Task description for SPR-4
+    clr_action: str  # "fix" | "refactor" | "feature" | "idle"
+    clr_task: str  # Task description for SPR-4
 
-    # --- PDE (parallel swarm) ---
+    # --- PDE (parallel dispatch) ---
     swarm_manifest: dict[str, Any]  # TaskManifest as dict
     swarm_results: Annotated[list[dict[str, Any]], operator.add]  # Per-agent results (append)
     swarm_outcome: str  # "success" | "failed" | "partial"
@@ -166,7 +166,7 @@ class OrchestratorState(TypedDict, total=False):
     # --- PDE-F (graduated dispatch) ---
     current_generation: int  # Which generation is being dispatched
     generation_results: Annotated[list[dict[str, Any]], operator.add]  # Per-generation results
-    dispatch_mode: str  # "flat" | "fibonacci"
+    dispatch_mode: str  # "flat" | "pdef"
 
     # --- HVD (meta-orchestrator) ---
     active_entities: list[dict[str, Any]]  # Running entities tracked by HVD

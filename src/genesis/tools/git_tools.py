@@ -1,4 +1,4 @@
-"""Git safety tools for CLR (evolution loop).
+"""Git safety tools for CLR (refinement loop).
 
 Provides checkpoint, revert, and diff functions. All operations use
 asyncio subprocess calls with cwd set to the project root.

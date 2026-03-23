@@ -1,4 +1,4 @@
-"""RetryController (Endurance) — strategic retry engine.
+"""Retry Controller — strategic retry engine.
 
 Replaces naive retry (same prompt + feedback) with intelligent strategy selection.
 When a node fails, RetryController analyzes the failure pattern and chooses the best

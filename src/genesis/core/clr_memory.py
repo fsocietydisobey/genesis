@@ -1,7 +1,7 @@
-"""Evolution memory for CLR — tracks what worked and what failed per cycle.
+"""Refinement memory for CLR — tracks what worked and what failed per cycle.
 
 Separate from SPR-4 memory.py (which tracks cross-run task context).
-This tracks the evolution history: which cycles improved health, which
+This tracks the refinement history: which cycles improved health, which
 were reverted, which spec items failed repeatedly.
 """
 
@@ -14,10 +14,10 @@ import aiosqlite
 
 from genesis.log import get_logger
 
-log = get_logger("evolution_memory")
+log = get_logger("clr_memory")
 
 _CREATE_TABLE = """\
-CREATE TABLE IF NOT EXISTS evolution_log (
+CREATE TABLE IF NOT EXISTS clr_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cycle INTEGER NOT NULL,
     timestamp REAL NOT NULL,
@@ -38,7 +38,7 @@ def _get_db_path() -> str:
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
     ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
-    return str(data_dir / "evolution.db")
+    return str(data_dir / "clr.db")
 
 
 async def _get_db() -> aiosqlite.Connection:
@@ -61,11 +61,11 @@ async def log_cycle(
     files_changed: list[str] | None = None,
     error_log: str = "",
 ) -> None:
-    """Record one evolution cycle."""
+    """Record one refinement cycle."""
     conn = await _get_db()
     try:
         await conn.execute(
-            "INSERT INTO evolution_log "
+            "INSERT INTO clr_log "
             "(cycle, timestamp, action, description, health_before, health_after, "
             "reverted, spec_item, files_changed, error_log) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -81,12 +81,12 @@ async def log_cycle(
 
 
 async def get_recent_cycles(limit: int = 10) -> list[dict]:
-    """Get the last N evolution cycles."""
+    """Get the last N refinement cycles."""
     conn = await _get_db()
     try:
         cursor = await conn.execute(
             "SELECT cycle, action, description, health_before, health_after, "
-            "reverted, spec_item FROM evolution_log "
+            "reverted, spec_item FROM clr_log "
             "ORDER BY timestamp DESC LIMIT ?",
             (limit,),
         )
@@ -108,7 +108,7 @@ async def get_failed_attempts(spec_item: str) -> int:
     conn = await _get_db()
     try:
         cursor = await conn.execute(
-            "SELECT COUNT(*) FROM evolution_log "
+            "SELECT COUNT(*) FROM clr_log "
             "WHERE spec_item = ? AND reverted = 1",
             (spec_item,),
         )
@@ -123,7 +123,7 @@ async def get_last_cycle_number() -> int:
     conn = await _get_db()
     try:
         cursor = await conn.execute(
-            "SELECT MAX(cycle) FROM evolution_log"
+            "SELECT MAX(cycle) FROM clr_log"
         )
         row = await cursor.fetchone()
         return row[0] if row and row[0] else 0

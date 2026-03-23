@@ -1,7 +1,7 @@
 """Planning phase subgraph — architect with Stress Tester adversarial review.
 
 Orchestrates the existing architect node (Claude CLI) in a loop:
-    architect → gevurah (adversarial review) → (loop if blockers, exit if plan_approved)
+    architect → stress_tester (adversarial review) → (loop if blockers, exit if plan_approved)
 
 Stress Tester replaces the passive critic — it actively tries to find flaws in the
 architecture plan. If blockers are found, the architect revises.
@@ -16,7 +16,7 @@ from genesis.nodes.spr4.critic import build_critic_node
 from genesis.nodes.tfb.stress_tester import build_stress_tester_node
 
 
-def _after_gevurah(state: OrchestratorState) -> str:
+def _after_stress_tester(state: OrchestratorState) -> str:
     """Route based on Stress Tester's verdict."""
     verdict = state.get("stress_test_verdict") or {}
     issues = verdict.get("issues", [])
@@ -34,7 +34,7 @@ def _after_gevurah(state: OrchestratorState) -> str:
 def build_planning_subgraph(critic_model: BaseChatModel):
     """Build the planning phase subgraph with Stress Tester adversarial review.
 
-    Flow: architect → gevurah (adversarial) → critic (score + handoff) → loop/exit
+    Flow: architect → stress_tester (adversarial) → critic (score + handoff) → loop/exit
 
     Stress Tester attacks the plan first. If blockers exist, architect revises before
     the critic even scores. Once Stress Tester passes, the critic scores and sets
@@ -53,16 +53,16 @@ def build_planning_subgraph(critic_model: BaseChatModel):
     graph = StateGraph(OrchestratorState)
 
     graph.add_node("architect", architect_node)
-    graph.add_node("gevurah", stress_tester_node)
+    graph.add_node("stress_tester", stress_tester_node)
     graph.add_node("critic", critic_node)
 
     graph.add_edge(START, "architect")
-    graph.add_edge("architect", "gevurah")
+    graph.add_edge("architect", "stress_tester")
 
     # Stress Tester blockers → loop back to architect; otherwise → critic for scoring
     graph.add_conditional_edges(
-        "gevurah",
-        _after_gevurah,
+        "stress_tester",
+        _after_stress_tester,
         {"architect": "architect", "critic": "critic"},
     )
 

@@ -1,4 +1,4 @@
-"""Integration Gate (Foundation) — comprehensive integration validation gate.
+"""Integration Gate — comprehensive integration validation gate.
 
 The final checkpoint before commit. Runs the full test suite, type checker,
 and git diff review. Unlike the simple validator (which scores one output),

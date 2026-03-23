@@ -1,6 +1,6 @@
-"""CLR graph — continuous evolution loop.
+"""CLR graph — continuous refinement loop.
 
-The Living Soul. A self-sustaining loop:
+A self-sustaining closed loop:
     assess → triage → execute (via SPR-4) → validate → commit/rollback → assess
 
 Runs until convergence (5 cycles with no improvement), budget exhaustion,
@@ -12,7 +12,7 @@ from __future__ import annotations
 from langgraph.graph import END, START, StateGraph
 
 from genesis.config import OrchestratorConfig, get_classify_model
-from genesis.core.evolution_memory import get_last_cycle_number, get_recent_cycles, log_cycle
+from genesis.core.clr_memory import get_last_cycle_number, get_recent_cycles, log_cycle
 from genesis.core.fitness import assess_health
 from genesis.core.state import OrchestratorState
 from genesis.nodes.clr.health_scanner import build_health_scanner_node
@@ -24,7 +24,7 @@ log = get_logger("clr")
 
 
 async def _init_node(state: OrchestratorState) -> dict:
-    """Initialize the evolution loop — set baseline and load resume state."""
+    """Initialize the refinement loop — set baseline and load resume state."""
     history = list(state.get("history", []))
     max_cycles = state.get("max_cycles", 50)
 
@@ -34,7 +34,7 @@ async def _init_node(state: OrchestratorState) -> dict:
         log.info("resuming from cycle %d", last_cycle)
         history.append(f"clr: resuming from cycle {last_cycle}")
 
-    # Load recent evolution context
+    # Load recent refinement context
     recent = await get_recent_cycles(limit=5)
     memory_parts = []
     for r in recent:
@@ -78,8 +78,8 @@ async def _execute_node(state: OrchestratorState) -> dict:
     from genesis.cli.prompts import build_prompt
     from genesis.cli.runners import run_claude
 
-    action = state.get("evolution_action", "idle")
-    task = state.get("evolution_task", "")
+    action = state.get("clr_action", "idle")
+    task = state.get("clr_task", "")
     history = list(state.get("history", []))
     cycle = state.get("cycle_count", 0)
 
@@ -137,7 +137,7 @@ async def _validate_node(state: OrchestratorState) -> dict:
         "health_score": new_score,
         "health_report": report.to_dict(),
         "consecutive_no_improvement": consecutive,
-        "evolution_action": decision,
+        "clr_action": decision,
         "history": history + [
             f"validate(cycle {cycle}): {baseline:.2f} → {new_score:.2f} ({delta:+.2f}) → {decision}"
         ],
@@ -145,11 +145,11 @@ async def _validate_node(state: OrchestratorState) -> dict:
 
 
 async def _commit_or_rollback_node(state: OrchestratorState) -> dict:
-    """Commit or revert based on validation result, log to evolution memory."""
+    """Commit or revert based on validation result, log to CLR memory."""
     history = list(state.get("history", []))
     cycle = state.get("cycle_count", 0)
-    action = state.get("evolution_action", "commit")
-    task = state.get("evolution_task", "")
+    action = state.get("clr_action", "commit")
+    task = state.get("clr_task", "")
     baseline = state.get("health_baseline", 0.0)
     score = state.get("health_score", 0.0)
 
@@ -173,10 +173,10 @@ async def _commit_or_rollback_node(state: OrchestratorState) -> dict:
                 "history": history + [f"commit(cycle {cycle}): self-modification detected — restart required"],
             }
 
-    # Log to evolution memory
+    # Log to CLR memory
     await log_cycle(
         cycle=cycle,
-        action=state.get("evolution_action", "unknown"),
+        action=state.get("clr_action", "unknown"),
         description=task,
         health_before=baseline,
         health_after=score,
@@ -193,7 +193,7 @@ async def _commit_or_rollback_node(state: OrchestratorState) -> dict:
 
 def _after_triage(state: OrchestratorState) -> str:
     """Route based on triage decision."""
-    action = state.get("evolution_action", "idle")
+    action = state.get("clr_action", "idle")
     if action == "idle":
         return END
     return "set_baseline"
@@ -203,13 +203,13 @@ def _after_commit(state: OrchestratorState) -> str:
     """Check if we should continue looping or exit."""
     if state.get("requires_restart"):
         return END  # Outer daemon will restart
-    if state.get("evolution_action") == "idle":
+    if state.get("clr_action") == "idle":
         return END
     return "assess"  # Loop back
 
 
 async def build_clr_graph(config: OrchestratorConfig):
-    """Build and compile the CLR evolution loop graph.
+    """Build and compile the CLR refinement loop graph.
 
     Args:
         config: OrchestratorConfig with provider/role definitions.

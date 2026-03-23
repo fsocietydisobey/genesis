@@ -1,4 +1,4 @@
-"""Arbitrator (Beauty/Harmony) — cross-model arbitration and synthesis.
+"""Arbitrator — cross-model arbitration and synthesis.
 
 The balancing force. Receives Stress Tester's verdict (restrictive) and ScopeAnalyzer's
 proposals (generative), and arbitrates between them. Uses a DIFFERENT model

@@ -1,11 +1,11 @@
-"""PDE graph — parallel swarm dispatch.
+"""PDE graph — parallel dispatch dispatch.
 
-The Animal Soul. Central Sovereign decomposes a goal into N independent tasks,
+Central task decomposer decomposes a goal into N independent tasks,
 fans out via Send(), merges results, and validates atomically.
 
 Supports two dispatch modes:
     - Flat: all tasks dispatched at once (for independent tasks)
-    - Fibonacci: graduated generations (for tasks with dependencies)
+    - PDE-F: graduated generations (for tasks with dependencies)
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from langgraph.types import Send
 
 from genesis.config import OrchestratorConfig, get_classify_model
 from genesis.core.state import OrchestratorState
-from genesis.nodes.pde.task_decomposer import build_task_decomposer_node, sort_into_generations, fibonacci_budget
+from genesis.nodes.pde.task_decomposer import build_task_decomposer_node, sort_into_generations, pdef_budget
 from genesis.nodes.pde.worker import build_pde_worker_node
 from genesis.nodes.pde.aggregator import build_pde_aggregator_node
 from genesis.log import get_logger
@@ -24,16 +24,16 @@ log = get_logger("pde")
 
 
 def _fan_out(state: OrchestratorState) -> list[Send]:
-    """Dispatch tasks based on the Sovereign's manifest.
+    """Dispatch tasks based on the task decomposer's manifest.
 
     Flat mode: Send() all tasks at once.
-    Fibonacci mode: Sort tasks into generations by dependency depth,
+    PDE-F mode: Sort tasks into generations by dependency depth,
     then dispatch all generations. Each generation's tasks get context from
     previous generations via accumulated state.
 
     Note: True sequential generation dispatch (wait for Gen 1 before dispatching
     Gen 2) requires a graph-level loop. For now, all tasks are dispatched at once
-    but with generation metadata attached so the Sovereign's dependency ordering
+    but with generation metadata attached so the decomposer's dependency ordering
     is preserved in the execution order.
     """
     manifest = state.get("swarm_manifest") or {}
@@ -44,15 +44,15 @@ def _fan_out(state: OrchestratorState) -> list[Send]:
         log.warning("no tasks in manifest — nothing to dispatch")
         return [Send("merge", {})]
 
-    if mode == "fibonacci" and any(t.get("dependencies") for t in tasks):
-        # Fibonacci mode: sort into generations
+    if mode == "pdef" and any(t.get("dependencies") for t in tasks):
+        # PDE-F mode: sort into generations
         generations = sort_into_generations(tasks)
-        log.info("fibonacci dispatch: %d generations", len(generations))
+        log.info("pdef dispatch: %d generations", len(generations))
 
         sends = []
         accumulated_context = ""
         for gen_idx, gen_tasks in enumerate(generations):
-            budget = fibonacci_budget(gen_idx)
+            budget = pdef_budget(gen_idx)
             for task in gen_tasks:
                 payload = {
                     "task": task.get("id", "unknown"),
@@ -66,7 +66,7 @@ def _fan_out(state: OrchestratorState) -> list[Send]:
                         f"Token budget: {budget}."
                     ),
                 }
-                sends.append(Send("swarm_agent", payload))
+                sends.append(Send("worker", payload))
 
             # Build accumulated context for next generation
             for task in gen_tasks:
@@ -83,14 +83,14 @@ def _fan_out(state: OrchestratorState) -> list[Send]:
             "context": task.get("description", ""),
             "supervisor_instructions": f"Files in scope: {', '.join(task.get('files', []))}",
         }
-        sends.append(Send("swarm_agent", payload))
+        sends.append(Send("worker", payload))
 
     log.info("flat dispatch: %d agents", len(sends))
     return sends
 
 
 async def build_pde_graph(config: OrchestratorConfig):
-    """Build and compile the PDE parallel swarm graph.
+    """Build and compile the PDE parallel dispatch graph.
 
     Args:
         config: OrchestratorConfig with provider/role definitions.
@@ -123,13 +123,13 @@ async def build_pde_graph(config: OrchestratorConfig):
 
     graph = StateGraph(OrchestratorState)
 
-    graph.add_node("sovereign", task_decomposer_node)
-    graph.add_node("swarm_agent", pde_worker_node)
+    graph.add_node("decomposer", task_decomposer_node)
+    graph.add_node("worker", pde_worker_node)
     graph.add_node("merge", merge_node)
 
-    graph.add_edge(START, "sovereign")
-    graph.add_conditional_edges("sovereign", _fan_out)
-    graph.add_edge("swarm_agent", "merge")
+    graph.add_edge(START, "decomposer")
+    graph.add_conditional_edges("decomposer", _fan_out)
+    graph.add_edge("worker", "merge")
     graph.add_edge("merge", END)
 
     compiled = graph.compile(checkpointer=checkpointer)

@@ -1,4 +1,4 @@
-"""Swarm agent — parallel worker for PDE.
+"""PDE worker — parallel worker for PDE.
 
 Thin wrapper around Claude CLI that executes a single task with scoped
 file access. Each agent owns a set of files and should only modify those.

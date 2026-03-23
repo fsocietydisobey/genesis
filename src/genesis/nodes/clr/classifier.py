@@ -1,4 +1,4 @@
-"""Triage node — classifies the highest-priority action for CLR.
+"""Classifier — classifies the highest-priority action for CLR.
 
 Reads the health report and decides: fix (defects), refactor (code smells),
 feature (next spec item), or idle (converged). Uses Haiku for fast classification.
@@ -45,7 +45,7 @@ class TriageDecision(BaseModel):
 
 
 def build_classifier_node(model: BaseChatModel):
-    """Build a triage node for CLR's evolution loop.
+    """Build a triage node for CLR's refinement loop.
 
     Args:
         model: LangChain chat model (Haiku — fast, cheap).
@@ -67,16 +67,16 @@ def build_classifier_node(model: BaseChatModel):
         if consecutive >= 5:
             log.info("cycle %d: converged (5 cycles with no improvement)", cycle)
             return {
-                "evolution_action": "idle",
-                "evolution_task": "Converged — no improvement in 5 cycles",
+                "clr_action": "idle",
+                "clr_task": "Converged — no improvement in 5 cycles",
                 "history": history + [f"triage(cycle {cycle}): idle — converged"],
             }
 
         if cycle >= max_cycles:
             log.info("cycle %d: budget exhausted (max %d)", cycle, max_cycles)
             return {
-                "evolution_action": "idle",
-                "evolution_task": "Budget exhausted",
+                "clr_action": "idle",
+                "clr_task": "Budget exhausted",
                 "history": history + [f"triage(cycle {cycle}): idle — budget exhausted"],
             }
 
@@ -109,8 +109,8 @@ def build_classifier_node(model: BaseChatModel):
         log.info("cycle %d: %s — %s", cycle, decision.action, decision.reasoning)
 
         return {
-            "evolution_action": decision.action,
-            "evolution_task": decision.task_description,
+            "clr_action": decision.action,
+            "clr_task": decision.task_description,
             "history": history + [
                 f"triage(cycle {cycle}): {decision.action} — {decision.task_description}"
             ],

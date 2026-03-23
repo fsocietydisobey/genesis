@@ -1,9 +1,9 @@
 """Review phase subgraph — Integration Gate integration gate + human approval.
 
-Runs the Integration Gate integration validator (full test suite + type checker + diff review),
+Runs the integration validator (full test suite + type checker + diff review),
 then pauses for human approval via the existing human_review node.
 
-    yesod (integration gate) → human_review (PAUSED) → exit
+    integration_gate → human_review (PAUSED) → exit
 
 The human sets human_approved on approval or provides feedback on rejection.
 """
@@ -38,7 +38,7 @@ async def _set_review_handoff(state: OrchestratorState) -> dict:
 def build_review_subgraph(validator_model: BaseChatModel):
     """Build the review phase subgraph with Integration Gate integration gate.
 
-    Flow: yesod (integration) → human_review (HITL) → set_handoff → exit
+    Flow: integration_gate → human_review (HITL) → set_handoff → exit
 
     Args:
         validator_model: LangChain model (unused — Integration Gate is deterministic,
@@ -52,12 +52,12 @@ def build_review_subgraph(validator_model: BaseChatModel):
 
     graph = StateGraph(OrchestratorState)
 
-    graph.add_node("yesod", integration_gate_node)
+    graph.add_node("integration_gate", integration_gate_node)
     graph.add_node("human_review", human_review_node)
     graph.add_node("set_handoff", _set_review_handoff)
 
-    graph.add_edge(START, "yesod")
-    graph.add_edge("yesod", "human_review")
+    graph.add_edge(START, "integration_gate")
+    graph.add_edge("integration_gate", "human_review")
     graph.add_edge("human_review", "set_handoff")
     graph.add_edge("set_handoff", END)
 

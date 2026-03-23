@@ -1,4 +1,4 @@
-"""Assess node — runs the fitness function and writes health metrics to state.
+"""Health scanner — runs the fitness function and writes health metrics to state.
 
 Pure deterministic evaluation. No LLM calls. Runs pytest, pyright, ruff,
 and parses SPEC.md to produce a HealthReport.

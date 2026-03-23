@@ -1,8 +1,8 @@
 """HVD graph — the meta-orchestrator.
 
-The Infinite. Monitors the repository, performs Contraction (
-budget, directives), and spawns the right pattern: CLR (evolution),
-PDE (parallel swarm), or SPR-4 (single task).
+Monitors the repository, performs contraction (
+budget, directives), and spawns the right pattern: CLR (refinement),
+PDE (parallel dispatch), or SPR-4 (single task).
 
 Flow:
     assess → dispatch → execute_pattern → directive_check → absorb → assess (loop)

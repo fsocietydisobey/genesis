@@ -1,4 +1,4 @@
-"""Swarm merge node — combines parallel agent results and validates.
+"""PDE aggregator — combines parallel agent results and validates.
 
 Collects all swarm_results, checks for conflicts, runs the test suite
 on the combined output. Atomic batch — failure rejects ALL results.

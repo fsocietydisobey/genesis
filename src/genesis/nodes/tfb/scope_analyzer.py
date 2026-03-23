@@ -1,4 +1,4 @@
-"""ScopeAnalyzer (Mercy/Expansion) — scope expansion proposer.
+"""Scope Analyzer — scope expansion proposer.
 
 The creative/generative force. Reads the implementation output and proposes
 improvements beyond the original plan — error handling, tests, related fixes.

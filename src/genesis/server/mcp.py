@@ -339,14 +339,14 @@ async def chain_spr4(task_description: str, context: str = "", thread_id: str = 
 
 @mcp.tool()
 async def chain_clr(max_cycles: int = 50, budget: float = 5.0) -> str:
-    """Start the CLR continuous evolution loop.
+    """Start the CLR continuous refinement loop.
 
     Autonomously improves the codebase: assess health → triage → execute → validate
     → commit or revert → loop. Reads SPEC.md for feature goals. Stops on convergence,
     budget exhaustion, or spec completion.
 
     Args:
-        max_cycles: Maximum evolution cycles before stopping (default 50).
+        max_cycles: Maximum refinement cycles before stopping (default 50).
         budget: Maximum estimated cost in USD (default 5.0).
     """
     log.info("chain_clr() called — max_cycles=%d, budget=$%.2f", max_cycles, budget)
@@ -384,7 +384,7 @@ async def chain_clr(max_cycles: int = 50, budget: float = 5.0) -> str:
     job._task = asyncio.create_task(_run())
 
     return (
-        f"**CLR (evolution loop) started:** `{job.job_id}`\n"
+        f"**CLR (refinement loop) started:** `{job.job_id}`\n"
         f"**Max cycles:** {max_cycles} | **Budget:** ${budget:.2f}\n\n"
         f"Use `status(job_id=\"{job.job_id}\")` to check progress."
     )
@@ -392,9 +392,9 @@ async def chain_clr(max_cycles: int = 50, budget: float = 5.0) -> str:
 
 @mcp.tool()
 async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
-    """Start a PDE parallel swarm.
+    """Start a PDE parallel dispatch.
 
-    A Sovereign planner decomposes the goal into N independent tasks and dispatches
+    The task decomposer decomposes the goal into N independent tasks and dispatches
     them concurrently. Results are merged and validated atomically.
 
     Best for batch operations: fix all pyright errors, add tests for 10 modules, etc.
@@ -427,10 +427,10 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
                     if isinstance(state_update, dict):
                         job.result.update(state_update)
                     message = f"{node_name}: completed"
-                    if node_name == "sovereign":
+                    if node_name == "decomposer":
                         manifest = state_update.get("swarm_manifest", {}) if isinstance(state_update, dict) else {}
                         tasks = manifest.get("tasks", [])
-                        message = f"Sovereign: decomposed into {len(tasks)} tasks"
+                        message = f"Decomposer: decomposed into {len(tasks)} tasks"
                     elif node_name == "merge":
                         outcome = state_update.get("swarm_outcome", "?") if isinstance(state_update, dict) else "?"
                         message = f"Merge: {outcome}"
@@ -448,7 +448,7 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
     job._task = asyncio.create_task(_run())
 
     return (
-        f"**PDE (parallel swarm) started:** `{job.job_id}`\n"
+        f"**PDE (parallel dispatch) started:** `{job.job_id}`\n"
         f"**Goal:** {goal}\n"
         f"**Max agents:** {max_agents} | **Budget:** ${budget:.2f}\n\n"
         f"Use `status(job_id=\"{job.job_id}\")` to check progress."
@@ -459,7 +459,7 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
 async def chain_hvd(budget: float = 10.0) -> str:
     """Start HVD — the autonomous meta-orchestrator.
 
-    Monitors repository health, decides which pattern to spawn (CLR for evolution,
+    Monitors repository health, decides which pattern to spawn (CLR for refinement,
     PDE for batch fixes, SPR-4 for single tasks), enforces directives, and
     controls compute budget. The "leave it running" system.
 
