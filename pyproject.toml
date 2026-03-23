@@ -1,5 +1,5 @@
 [project]
-name = "genesis"
+name = "chimera"
 version = "0.1.0"
 description = "Autonomous multi-model orchestration system. Six composable LangGraph patterns unified under a Kabbalistic architecture where intent descends through balanced forces into running code."
 readme = "README.md"
@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-genesis = "genesis:main"
+chimera = "chimera:main"
 
 [build-system]
 requires = ["hatchling"]

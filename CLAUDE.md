@@ -1,15 +1,15 @@
-# Genesis — Project Rules
+# CHIMERA — Project Rules
 
 ## What this is
 
-An autonomous multi-model AI orchestration system built on LangGraph. Six composable execution patterns unified under a Kabbalistic architecture.
+Autonomous multi-model AI orchestration system built on LangGraph. Six composable execution patterns unified under a Kabbalistic architecture.
 
-Entry point: `genesis` — runs the MCP server over stdio.
+Entry point: `chimera` — runs the MCP server over stdio.
 
 ## Project structure
 
 ```
-src/genesis/
+src/chimera/
   core/              # State, guards, memory, fitness, directives, resource control
   graphs/            # 5 compiled StateGraphs
     spr4.py          # SPR-4 (phased pipeline) — chain_spr4
@@ -35,7 +35,7 @@ src/genesis/
   tools/             # Filesystem tools, git tools
   log.py             # Structured logging (stderr only)
   pidlock.py         # PID lock to prevent zombie instances
-docs/                # Genesis story, commands reference, usage guide
+docs/                # CHIMERA story, commands reference, usage guide
 tasks/               # Pattern design docs (BUILD-ORDER.md, per-pattern folders)
 scripts/             # Daemon scripts (ouroboros.sh, muther.sh)
 ```
@@ -46,11 +46,11 @@ scripts/             # Daemon scripts (ouroboros.sh, muther.sh)
 - Python 3.12+. Use modern syntax: `str | None`, `list[str]`, `dict[str, Any]`.
 - Async throughout — all MCP tool handlers and node functions are `async def`.
 - Type hints on all function signatures.
-- Imports: stdlib, then third-party, then `genesis.*` (absolute imports within the package).
+- Imports: stdlib, then third-party, then `chimera.*` (absolute imports within the package).
 - Use `uv add <package>` to add dependencies.
 
 ### Logging
-- Use `from genesis.log import get_logger` and `log = get_logger("component_name")`.
+- Use `from chimera.log import get_logger` and `log = get_logger("component_name")`.
 - Log to stderr only — MCP uses stdout for protocol messages.
 - Don't log prompt contents at INFO level (too large). Use DEBUG.
 
@@ -80,7 +80,7 @@ scripts/             # Daemon scripts (ouroboros.sh, muther.sh)
 | `swarm` | **PDE** (Parallel Dispatch Engine) | Parallel swarm dispatch |
 | (inside Nefesh) | **PDE-F** (Fibonacci Dispatch) | Graduated dispatch mode |
 | `chain_hvd` | **HVD** (Hypervisor Daemon) | Meta-orchestrator |
-| `chain_swp` | **SWP** (Shadow Worktree Purifier) | Dead code purging in shadow worktree (planned) |
+| `chain_dce` | **DCE** (Dead Code Eliminator) | Dead code purging in shadow worktree (planned) |
 | `chain_pob` | **POB** (Proactive Observation Builder) | Proactive tool-builder from the Qliphoth (planned) |
 | (inside agents) | **ACL** (Atomic Component Library) | Immutable atomic primitives (planned) |
 | The system | **Genesis** | Where intent becomes reality |
@@ -97,6 +97,6 @@ scripts/             # Daemon scripts (ouroboros.sh, muther.sh)
 ## Running
 
 ```bash
-uv run genesis              # Start the MCP server
-LOG_LEVEL=DEBUG uv run genesis  # With debug logging
+uv run chimera              # Start the MCP server
+LOG_LEVEL=DEBUG uv run chimera  # With debug logging
 ```

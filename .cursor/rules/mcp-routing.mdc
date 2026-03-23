@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Genesis — MCP Tool Routing
 
-You have access to MCP tools from the `genesis` server. Use them when the situation matches.
+You have access to MCP tools from the `chimera` server. Use them when the situation matches.
 
 ## Keyword triggers
 
@@ -29,7 +29,7 @@ When the user starts a message with these keywords, ALWAYS use the corresponding
 - **"classify ..."** → `classify(task_description)` — fast tier classification
 
 ### System name
-The full system is called **Genesis** (technical designation: CHIMERA). Reference docs: `docs/genesis-commands.md` and `docs/usage-guide.md`.
+The full system is called **CHIMERA**. Reference docs: `docs/genesis-commands.md` and `docs/usage-guide.md`.
 
 ## When to use MCP tools vs handle directly
 
