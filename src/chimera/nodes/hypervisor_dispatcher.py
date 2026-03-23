@@ -49,7 +49,7 @@ class DispatchDecision(BaseModel):
     )
 
 
-def build_hvd_dispatcher_node(model: BaseChatModel):
+def build_hypervisor_dispatcher_node(model: BaseChatModel):
     """Build HVD's pattern dispatch node.
 
     Args:

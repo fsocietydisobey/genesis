@@ -2,7 +2,7 @@
 
 ## What this is
 
-Autonomous multi-model AI orchestration system built on LangGraph. Six composable execution patterns unified under a Kabbalistic architecture.
+Autonomous multi-model AI orchestration system built on LangGraph. Nine composable execution patterns unified under a Kabbalistic architecture.
 
 Entry point: `chimera` — runs the MCP server over stdio.
 
@@ -11,28 +11,34 @@ Entry point: `chimera` — runs the MCP server over stdio.
 ```
 src/chimera/
   core/              # State, guards, memory, fitness, directives, resource control
-  graphs/            # 5 compiled StateGraphs
-    spr4.py          # SPR-4 (phased pipeline) — chain_spr4
-    clr.py           # CLR (evolution loop) — chain_clr
-    pde.py           # PDE (parallel swarm) — swarm
-    hvd.py           # HVD (meta-orchestrator) — chain_hvd
+  graphs/            # 8 compiled StateGraphs
+    pipeline.py      # SPR-4 (phased pipeline) — chain_pipeline
+    refiner.py       # CLR (evolution loop) — chain_refiner
+    swarm.py         # PDE (parallel swarm) — swarm
+    hypervisor.py    # HVD (meta-orchestrator) — chain_hypervisor
     supervisor.py    # Option B hub-and-spoke — chain
-  nodes/             # 20 node factories, organized by pattern
-    spr4/        # SPR-4: research, architect, implement, critic
-    tfb/         # TFB: stress_tester, scope_analyzer, arbitrator, compliance, retry_controller, integration_gate
-    pde/           # PDE: task_decomposer, worker, aggregator
-    clr/       # CLR: health_scanner, classifier
+    components.py    # ACL (component library) — chain_components
+    deadcode.py      # DCE (dead code eliminator) — chain_deadcode
+    toolbuilder.py   # POB (proactive tool-builder) — chain_toolbuilder
+  nodes/             # Node factories, organized by pattern
+    pipeline/        # Pipeline: research, architect, implement, critic
+    balanced/        # Balanced forces: stress_tester, scope_analyzer, arbitrator, compliance, retry_controller, integration_gate
+    swarm/           # Swarm: task_decomposer, worker, aggregator
+    refiner/         # Refiner: health_scanner, classifier
+    components/      # Components: scanner, validator, enforcer
+    deadcode/        # Dead code: seeker, shatterer, reaper
+    toolbuilder/     # Tool builder: watcher, friction, proposer, forge, pr_creator
     supervisor.py    # Option B supervisor
     validator.py     # Shared quality scorer
     human_review.py  # HITL via interrupt()
     gemini_assist.py # Debugging via Gemini CLI
-    hvd_dispatcher.py  # HVD pattern selector
-  subgraphs/         # SPR-4 phase subgraphs (research, planning, implementation, review)
-  server/            # MCP server (13 tools) + background job manager
+    hypervisor_dispatcher.py  # Hypervisor pattern selector
+  subgraphs/         # Pipeline phase subgraphs (research, planning, implementation, review)
+  server/            # MCP server (16 tools) + background job manager
   config/            # YAML config loader, providers (Anthropic, Google)
   cli/               # CLI subprocess runners (run_claude, run_gemini)
   prompts/           # System prompts for research, architect, classifier
-  tools/             # Filesystem tools, git tools
+  tools/             # Filesystem tools, git tools, worktree management
   log.py             # Structured logging (stderr only)
   pidlock.py         # PID lock to prevent zombie instances
 docs/                # CHIMERA story, commands reference, usage guide
@@ -63,7 +69,7 @@ scripts/             # Daemon scripts (ouroboros.sh, muther.sh)
 ### Graphs
 - Each graph has its own checkpointer (AsyncSqliteSaver).
 - Subgraphs compile without checkpointers — the parent handles persistence.
-- `chain_spr4` triggers SPR-4. `swarm` triggers PDE. `chain_clr` triggers CLR. `chain_hvd` triggers HVD.
+- `chain_pipeline` triggers SPR-4. `swarm` triggers PDE. `chain_refiner` triggers CLR. `chain_hypervisor` triggers HVD.
 
 ### CLI subprocesses
 - All subprocess calls go through `run_cli()` in `cli/cli.py`.
@@ -72,17 +78,17 @@ scripts/             # Daemon scripts (ouroboros.sh, muther.sh)
 
 ## Pattern designations
 
-| Code name | Designation | What it is |
+| MCP tool | Designation | What it is |
 |---|---|---|
-| `chain_spr4` | **SPR-4** (Sequential Phase Runner) | 4-phase pipeline with Sefirot balanced forces |
-| (inside SPR-4) | **TFB** (Tri-Force Balancer) | 6 balanced force nodes: Gevurah, Chesed, Tiferet, Hod, Netzach, Yesod |
-| `chain_clr` | **CLR** (Closed-Loop Refiner) | Continuous evolution loop |
+| `chain_pipeline` | **SPR-4** (Sequential Phase Runner) | 4-phase pipeline with balanced forces |
+| (inside pipeline) | **TFB** (Tri-Force Balancer) | 6 balanced force nodes |
+| `chain_refiner` | **CLR** (Closed-Loop Refiner) | Continuous evolution loop |
 | `swarm` | **PDE** (Parallel Dispatch Engine) | Parallel swarm dispatch |
-| (inside Nefesh) | **PDE-F** (Fibonacci Dispatch) | Graduated dispatch mode |
-| `chain_hvd` | **HVD** (Hypervisor Daemon) | Meta-orchestrator |
-| `chain_dce` | **DCE** (Dead Code Eliminator) | Dead code purging in shadow worktree (planned) |
-| `chain_pob` | **POB** (Proactive Observation Builder) | Proactive tool-builder from the Qliphoth (planned) |
-| (inside agents) | **ACL** (Atomic Component Library) | Immutable atomic primitives (planned) |
+| (inside swarm) | **PDE-F** (Fibonacci Dispatch) | Graduated dispatch mode |
+| `chain_hypervisor` | **HVD** (Hypervisor Daemon) | Meta-orchestrator |
+| `chain_components` | **ACL** (Atomic Component Library) | Immutable atomic primitives |
+| `chain_deadcode` | **DCE** (Dead Code Eliminator) | Dead code purging in shadow worktree |
+| `chain_toolbuilder` | **POB** (Proactive Observation Builder) | Proactive tool-builder |
 | The system | **Genesis** | Where intent becomes reality |
 
 ## Things to avoid

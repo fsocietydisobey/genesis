@@ -60,7 +60,7 @@ class TaskManifest(BaseModel):
     reasoning: str = Field(description="Why this decomposition was chosen")
 
 
-def build_task_decomposer_node(model: BaseChatModel):
+def build_swarm_decomposer_node(model: BaseChatModel):
     """Build a task decomposition node.
 
     Args:

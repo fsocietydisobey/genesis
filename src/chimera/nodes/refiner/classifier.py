@@ -67,16 +67,16 @@ def build_classifier_node(model: BaseChatModel):
         if consecutive >= 5:
             log.info("cycle %d: converged (5 cycles with no improvement)", cycle)
             return {
-                "clr_action": "idle",
-                "clr_task": "Converged — no improvement in 5 cycles",
+                "refiner_action": "idle",
+                "refiner_task": "Converged — no improvement in 5 cycles",
                 "history": history + [f"triage(cycle {cycle}): idle — converged"],
             }
 
         if cycle >= max_cycles:
             log.info("cycle %d: budget exhausted (max %d)", cycle, max_cycles)
             return {
-                "clr_action": "idle",
-                "clr_task": "Budget exhausted",
+                "refiner_action": "idle",
+                "refiner_task": "Budget exhausted",
                 "history": history + [f"triage(cycle {cycle}): idle — budget exhausted"],
             }
 
@@ -109,8 +109,8 @@ def build_classifier_node(model: BaseChatModel):
         log.info("cycle %d: %s — %s", cycle, decision.action, decision.reasoning)
 
         return {
-            "clr_action": decision.action,
-            "clr_task": decision.task_description,
+            "refiner_action": decision.action,
+            "refiner_task": decision.task_description,
             "history": history + [
                 f"triage(cycle {cycle}): {decision.action} — {decision.task_description}"
             ],

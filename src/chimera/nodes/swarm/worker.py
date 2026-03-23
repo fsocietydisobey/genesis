@@ -23,7 +23,7 @@ You are a focused implementation agent. Execute ONLY the task described below.
 """
 
 
-def build_pde_worker_node():
+def build_swarm_worker_node():
     """Build a swarm agent node for parallel execution.
 
     Returns:

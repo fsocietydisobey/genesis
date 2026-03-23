@@ -10,8 +10,8 @@ needed. The loop runs until the critic passes or max steps are reached.
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, START, StateGraph
 
-from chimera.nodes.spr4.critic import build_critic_node
-from chimera.nodes.spr4.research import build_research_node
+from chimera.nodes.pipeline.critic import build_critic_node
+from chimera.nodes.pipeline.research import build_research_node
 from chimera.core.state import OrchestratorState
 
 

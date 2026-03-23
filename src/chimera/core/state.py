@@ -152,8 +152,8 @@ class OrchestratorState(TypedDict, total=False):
     max_cycles: int  # Budget cap on cycles
     consecutive_no_improvement: int  # For convergence detection
     requires_restart: bool  # Self-modification detected
-    clr_action: str  # "fix" | "refactor" | "feature" | "idle"
-    clr_task: str  # Task description for SPR-4
+    refiner_action: str  # "fix" | "refactor" | "feature" | "idle"
+    refiner_task: str  # Task description for SPR-4
 
     # --- PDE (parallel dispatch) ---
     swarm_manifest: dict[str, Any]  # TaskManifest as dict
@@ -173,4 +173,22 @@ class OrchestratorState(TypedDict, total=False):
     dispatch_decision: dict[str, Any]  # DispatchDecision as dict
     directive_result: dict[str, Any]  # DirectiveResult as dict
     global_budget: dict[str, Any]  # GlobalBudget as dict
-    hvd_cycle: int  # HVD's own cycle count
+    hypervisor_cycle: int  # HVD's own cycle count
+
+    # --- ACL (Atomic Component Library) ---
+    component_scan_result: dict[str, Any]  # Scanner output: components, violations
+    component_validation_report: dict[str, Any]  # Validator output: isolation, pairs, scenarios
+    component_enforcement_result: dict[str, Any]  # Enforcer output: passed, violations
+
+    # --- DCE (Dead Code Eliminator) ---
+    deadcode_shadow_path: str  # Path to shadow worktree
+    deadcode_targets: dict[str, Any]  # Seeker output: target map with risk levels
+    deadcode_split_proposals: list[dict[str, Any]]  # Shatterer output: file split proposals
+    deadcode_reap_result: dict[str, Any]  # Reaper output: deleted, reverted, lines removed
+
+    # --- POB (Proactive Observation Builder) ---
+    toolbuilder_signals: list[dict[str, Any]]  # Watcher output: behavioral signals
+    toolbuilder_friction_points: list[dict[str, Any]]  # Friction analyzer output
+    toolbuilder_tool_spec: dict[str, Any] | None  # Proposer output: tool specification
+    toolbuilder_forge_result: dict[str, Any] | None  # Forge output: build result
+    toolbuilder_pr_result: dict[str, Any] | None  # PR creator output

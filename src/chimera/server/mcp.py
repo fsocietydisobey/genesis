@@ -2,8 +2,8 @@
 
 Loads .env automatically so API keys don't need to be in MCP config.
 
-13 MCP tools: health, research, architect, classify, chain, chain_spr4,
-chain_clr, swarm, chain_hvd, status, approve, history, rewind.
+13 MCP tools: health, research, architect, classify, chain, chain_pipeline,
+chain_refiner, swarm, chain_hypervisor, status, approve, history, rewind.
 """
 
 import asyncio
@@ -23,11 +23,14 @@ load_dotenv(_project_root / ".env")
 from chimera.cli.prompts import build_prompt
 from chimera.cli.runners import run_claude, run_gemini
 from chimera.config import load_config, Router
-from chimera.graphs.spr4 import build_spr4_graph
-from chimera.graphs.pde import build_pde_graph
-from chimera.graphs.hvd import build_hvd_graph
+from chimera.graphs.pipeline import build_pipeline_graph
+from chimera.graphs.swarm import build_swarm_graph
+from chimera.graphs.hypervisor import build_hypervisor_graph
 from chimera.graphs.supervisor import build_orchestrator_graph
-from chimera.graphs.clr import build_clr_graph
+from chimera.graphs.refiner import build_refiner_graph
+from chimera.graphs.components import build_components_graph
+from chimera.graphs.deadcode import build_deadcode_graph
+from chimera.graphs.toolbuilder import build_toolbuilder_graph
 from chimera.server.jobs import Job, create_job, format_job_status, get_job, list_jobs, notify_job_update
 from chimera.log import get_logger, setup_logging
 from chimera.prompts import ARCHITECT_SYSTEM_PROMPT, RESEARCH_SYSTEM_PROMPT
@@ -43,14 +46,20 @@ _server_start_time = time.time()
 
 _orchestrator_graph = None
 _checkpointer = None
-_spr4_graph = None
-_spr4_checkpointer = None
-_clr_graph = None
-_clr_checkpointer = None
-_pde_graph = None
-_pde_checkpointer = None
-_hvd_graph = None
-_hvd_checkpointer = None
+_pipeline_graph = None
+_pipeline_checkpointer = None
+_refiner_graph = None
+_refiner_checkpointer = None
+_swarm_graph = None
+_swarm_checkpointer = None
+_hypervisor_graph = None
+_hypervisor_checkpointer = None
+_components_graph = None
+_components_checkpointer = None
+_deadcode_graph = None
+_deadcode_checkpointer = None
+_toolbuilder_graph = None
+_toolbuilder_checkpointer = None
 
 
 async def _get_graph():
@@ -61,36 +70,60 @@ async def _get_graph():
     return _orchestrator_graph
 
 
-async def _get_spr4_graph():
+async def _get_pipeline_graph():
     """Get or build the SPR-4 graph (lazy async singleton)."""
-    global _spr4_graph, _spr4_checkpointer
-    if _spr4_graph is None:
-        _spr4_graph, _spr4_checkpointer = await build_spr4_graph(config)
-    return _spr4_graph
+    global _pipeline_graph, _pipeline_checkpointer
+    if _pipeline_graph is None:
+        _pipeline_graph, _pipeline_checkpointer = await build_pipeline_graph(config)
+    return _pipeline_graph
 
 
-async def _get_clr_graph():
+async def _get_refiner_graph():
     """Get or build the CLR graph (lazy async singleton)."""
-    global _clr_graph, _clr_checkpointer
-    if _clr_graph is None:
-        _clr_graph, _clr_checkpointer = await build_clr_graph(config)
-    return _clr_graph
+    global _refiner_graph, _refiner_checkpointer
+    if _refiner_graph is None:
+        _refiner_graph, _refiner_checkpointer = await build_refiner_graph(config)
+    return _refiner_graph
 
 
-async def _get_pde_graph():
+async def _get_swarm_graph():
     """Get or build the PDE graph (lazy async singleton)."""
-    global _pde_graph, _pde_checkpointer
-    if _pde_graph is None:
-        _pde_graph, _pde_checkpointer = await build_pde_graph(config)
-    return _pde_graph
+    global _swarm_graph, _swarm_checkpointer
+    if _swarm_graph is None:
+        _swarm_graph, _swarm_checkpointer = await build_swarm_graph(config)
+    return _swarm_graph
 
 
-async def _get_hvd_graph():
+async def _get_hypervisor_graph():
     """Get or build the HVD graph (lazy async singleton)."""
-    global _hvd_graph, _hvd_checkpointer
-    if _hvd_graph is None:
-        _hvd_graph, _hvd_checkpointer = await build_hvd_graph(config)
-    return _hvd_graph
+    global _hypervisor_graph, _hypervisor_checkpointer
+    if _hypervisor_graph is None:
+        _hypervisor_graph, _hypervisor_checkpointer = await build_hypervisor_graph(config)
+    return _hypervisor_graph
+
+
+async def _get_components_graph():
+    """Get or build the ACL graph (lazy async singleton)."""
+    global _components_graph, _components_checkpointer
+    if _components_graph is None:
+        _components_graph, _components_checkpointer = await build_components_graph(config)
+    return _components_graph
+
+
+async def _get_deadcode_graph():
+    """Get or build the DCE graph (lazy async singleton)."""
+    global _deadcode_graph, _deadcode_checkpointer
+    if _deadcode_graph is None:
+        _deadcode_graph, _deadcode_checkpointer = await build_deadcode_graph(config)
+    return _deadcode_graph
+
+
+async def _get_toolbuilder_graph():
+    """Get or build the POB graph (lazy async singleton)."""
+    global _toolbuilder_graph, _toolbuilder_checkpointer
+    if _toolbuilder_graph is None:
+        _toolbuilder_graph, _toolbuilder_checkpointer = await build_toolbuilder_graph(config)
+    return _toolbuilder_graph
 
 
 # Create the MCP server
@@ -254,7 +287,7 @@ async def chain(task_description: str, context: str = "", thread_id: str = "") -
 
 
 @mcp.tool()
-async def chain_spr4(task_description: str, context: str = "", thread_id: str = "") -> str:
+async def chain_pipeline(task_description: str, context: str = "", thread_id: str = "") -> str:
     """Start the SPR-4 pipeline (CHIMERA) in the background.
 
     SPR-4 runs a phased pipeline: research → planning → implementation → review.
@@ -272,8 +305,8 @@ async def chain_spr4(task_description: str, context: str = "", thread_id: str = 
         thread_id: Optional thread ID to continue a previous chain.
     """
     t_entry = time.time()
-    log.info("chain_spr4() called — task: %s", task_description[:80])
-    graph = await _get_spr4_graph()
+    log.info("chain_pipeline() called — task: %s", task_description[:80])
+    graph = await _get_pipeline_graph()
     log.info("SPR-4 graph ready (%.1fs)", time.time() - t_entry)
 
     job = create_job(thread_id=thread_id if thread_id else None)
@@ -296,7 +329,7 @@ async def chain_spr4(task_description: str, context: str = "", thread_id: str = 
                         continue
                     if isinstance(state_update, dict):
                         job.result.update(state_update)
-                    message = _build_spr4_progress_message(node_name, state_update)
+                    message = _build_pipeline_progress_message(node_name, state_update)
                     job.progress.append(f"[{node_elapsed:.1f}s] {message}")
                     log.info("job %s [%.1fs]: %s", job.job_id, node_elapsed, message)
                     node_start = time.time()
@@ -338,7 +371,7 @@ async def chain_spr4(task_description: str, context: str = "", thread_id: str = 
 
 
 @mcp.tool()
-async def chain_clr(max_cycles: int = 50, budget: float = 5.0) -> str:
+async def chain_refiner(max_cycles: int = 50, budget: float = 5.0) -> str:
     """Start the CLR continuous refinement loop.
 
     Autonomously improves the codebase: assess health → triage → execute → validate
@@ -349,8 +382,8 @@ async def chain_clr(max_cycles: int = 50, budget: float = 5.0) -> str:
         max_cycles: Maximum refinement cycles before stopping (default 50).
         budget: Maximum estimated cost in USD (default 5.0).
     """
-    log.info("chain_clr() called — max_cycles=%d, budget=$%.2f", max_cycles, budget)
-    graph = await _get_clr_graph()
+    log.info("chain_refiner() called — max_cycles=%d, budget=$%.2f", max_cycles, budget)
+    graph = await _get_refiner_graph()
 
     job = create_job()
     graph_config = {"configurable": {"thread_id": job.thread_id}}
@@ -405,7 +438,7 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
         max_agents: Maximum parallel workers (default 10).
     """
     log.info("swarm() called — goal: %s, budget=$%.2f, max_agents=%d", goal[:80], budget, max_agents)
-    graph = await _get_pde_graph()
+    graph = await _get_swarm_graph()
 
     job = create_job()
     graph_config = {"configurable": {"thread_id": job.thread_id}}
@@ -456,7 +489,7 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
 
 
 @mcp.tool()
-async def chain_hvd(budget: float = 10.0) -> str:
+async def chain_hypervisor(budget: float = 10.0) -> str:
     """Start HVD — the autonomous meta-orchestrator.
 
     Monitors repository health, decides which pattern to spawn (CLR for refinement,
@@ -466,8 +499,8 @@ async def chain_hvd(budget: float = 10.0) -> str:
     Args:
         budget: Maximum daily cost in USD (default 10.0).
     """
-    log.info("chain_hvd() called — budget=$%.2f", budget)
-    graph = await _get_hvd_graph()
+    log.info("chain_hypervisor() called — budget=$%.2f", budget)
+    graph = await _get_hypervisor_graph()
 
     job = create_job()
     graph_config = {"configurable": {"thread_id": job.thread_id}}
@@ -488,7 +521,7 @@ async def chain_hvd(budget: float = 10.0) -> str:
                         continue
                     if isinstance(state_update, dict):
                         job.result.update(state_update)
-                    cycle = state_update.get("hvd_cycle", "") if isinstance(state_update, dict) else ""
+                    cycle = state_update.get("hypervisor_cycle", "") if isinstance(state_update, dict) else ""
                     message = f"HVD [{node_name}]"
                     if cycle:
                         message += f" cycle {cycle}"
@@ -509,6 +542,152 @@ async def chain_hvd(budget: float = 10.0) -> str:
         f"**HVD (meta-orchestrator) started:** `{job.job_id}`\n"
         f"**Daily budget:** ${budget:.2f}\n\n"
         f"HVD will assess, dispatch, and manage patterns autonomously.\n"
+        f"Use `status(job_id=\"{job.job_id}\")` to check progress."
+    )
+
+
+@mcp.tool()
+async def chain_components() -> str:
+    """Run the ACL (Atomic Component Library) validation pipeline.
+
+    Scans the codebase for component usage and violations, runs combinatorial
+    validation on registered components, and enforces compliance on recent changes.
+
+    Flow: init → scan → validate → enforce → report
+    """
+    log.info("chain_components() called")
+    graph = await _get_components_graph()
+
+    job = create_job()
+    graph_config = {"configurable": {"thread_id": job.thread_id}}
+    initial_state: dict = {"task": "ACL validation"}
+
+    async def _run():
+        try:
+            async for update in graph.astream(
+                initial_state, config=graph_config, stream_mode="updates"
+            ):
+                if update is None:
+                    continue
+                for node_name, state_update in update.items():
+                    if node_name == "__interrupt__":
+                        continue
+                    if isinstance(state_update, dict):
+                        job.result.update(state_update)
+                    job.progress.append(f"ACL [{node_name}]: completed")
+
+            job.status = "completed"
+            job.finished_at = time.time()
+            notify_job_update(job)
+        except Exception as e:
+            job.status = "failed"
+            job.error = str(e)
+            job.finished_at = time.time()
+            notify_job_update(job)
+
+    job._task = asyncio.create_task(_run())
+
+    return (
+        f"**ACL (component library) started:** `{job.job_id}`\n\n"
+        f"Validates atomic components: scan → validate → enforce.\n"
+        f"Use `status(job_id=\"{job.job_id}\")` to check progress."
+    )
+
+
+@mcp.tool()
+async def chain_deadcode() -> str:
+    """Run the DCE (Dead Code Eliminator) pipeline.
+
+    Operates in a shadow worktree for safety. Finds dead code via static
+    analysis, proposes file splits for monoliths, and deletes dead code
+    in risk-ordered batches with test validation.
+
+    Flow: create shadow → seek → shatter → reap → merge → cleanup
+    """
+    log.info("chain_deadcode() called")
+    graph = await _get_deadcode_graph()
+
+    job = create_job()
+    graph_config = {"configurable": {"thread_id": job.thread_id}}
+    initial_state: dict = {"task": "DCE dead code elimination"}
+
+    async def _run():
+        try:
+            async for update in graph.astream(
+                initial_state, config=graph_config, stream_mode="updates"
+            ):
+                if update is None:
+                    continue
+                for node_name, state_update in update.items():
+                    if node_name == "__interrupt__":
+                        continue
+                    if isinstance(state_update, dict):
+                        job.result.update(state_update)
+                    job.progress.append(f"DCE [{node_name}]: completed")
+
+            job.status = "completed"
+            job.finished_at = time.time()
+            notify_job_update(job)
+        except Exception as e:
+            job.status = "failed"
+            job.error = str(e)
+            job.finished_at = time.time()
+            notify_job_update(job)
+
+    job._task = asyncio.create_task(_run())
+
+    return (
+        f"**DCE (dead code eliminator) started:** `{job.job_id}`\n\n"
+        f"Operates in shadow worktree: seek → shatter → reap → merge.\n"
+        f"Use `status(job_id=\"{job.job_id}\")` to check progress."
+    )
+
+
+@mcp.tool()
+async def chain_toolbuilder() -> str:
+    """Run the POB (Proactive Observation Builder) pipeline.
+
+    Observes developer behavior (shell history, git patterns, file metrics),
+    identifies friction points, proposes a tool, builds it on a branch,
+    and opens a PR. Never touches product code.
+
+    Flow: watch → analyze → propose → forge → PR
+    """
+    log.info("chain_toolbuilder() called")
+    graph = await _get_toolbuilder_graph()
+
+    job = create_job()
+    graph_config = {"configurable": {"thread_id": job.thread_id}}
+    initial_state: dict = {"task": "POB proactive tool building"}
+
+    async def _run():
+        try:
+            async for update in graph.astream(
+                initial_state, config=graph_config, stream_mode="updates"
+            ):
+                if update is None:
+                    continue
+                for node_name, state_update in update.items():
+                    if node_name == "__interrupt__":
+                        continue
+                    if isinstance(state_update, dict):
+                        job.result.update(state_update)
+                    job.progress.append(f"POB [{node_name}]: completed")
+
+            job.status = "completed"
+            job.finished_at = time.time()
+            notify_job_update(job)
+        except Exception as e:
+            job.status = "failed"
+            job.error = str(e)
+            job.finished_at = time.time()
+            notify_job_update(job)
+
+    job._task = asyncio.create_task(_run())
+
+    return (
+        f"**POB (proactive tool-builder) started:** `{job.job_id}`\n\n"
+        f"Observes behavior → identifies friction → builds tool → opens PR.\n"
         f"Use `status(job_id=\"{job.job_id}\")` to check progress."
     )
 
@@ -766,7 +945,7 @@ def _build_progress_message(node_name: str, state_update: dict) -> str:
     return f"{node_name}: completed"
 
 
-def _build_spr4_progress_message(node_name: str, state_update: dict) -> str:
+def _build_pipeline_progress_message(node_name: str, state_update: dict) -> str:
     """Build a phase-aware progress message for SPR-4 graph updates."""
     if state_update is None:
         state_update = {}
@@ -864,11 +1043,13 @@ def _format_graph_result(state: dict) -> str:
 
 async def _cleanup():
     """Close checkpointer connections on shutdown."""
-    global _checkpointer, _spr4_checkpointer, _clr_checkpointer, _pde_checkpointer, _hvd_checkpointer
+    global _checkpointer, _pipeline_checkpointer, _refiner_checkpointer, _swarm_checkpointer, _hypervisor_checkpointer
+    global _components_checkpointer, _deadcode_checkpointer, _toolbuilder_checkpointer
     for name, cp in [
-        ("supervisor", _checkpointer), ("spr4", _spr4_checkpointer),
-        ("clr", _clr_checkpointer), ("pde", _pde_checkpointer),
-        ("hvd", _hvd_checkpointer),
+        ("supervisor", _checkpointer), ("spr4", _pipeline_checkpointer),
+        ("clr", _refiner_checkpointer), ("pde", _swarm_checkpointer),
+        ("hvd", _hypervisor_checkpointer), ("acl", _components_checkpointer),
+        ("dce", _deadcode_checkpointer), ("pob", _toolbuilder_checkpointer),
     ]:
         if cp is not None:
             try:
@@ -877,10 +1058,13 @@ async def _cleanup():
             except Exception as e:
                 log.warning("%s checkpointer cleanup failed: %s", name, e)
     _checkpointer = None
-    _spr4_checkpointer = None
-    _clr_checkpointer = None
-    _pde_checkpointer = None
-    _hvd_checkpointer = None
+    _pipeline_checkpointer = None
+    _refiner_checkpointer = None
+    _swarm_checkpointer = None
+    _hypervisor_checkpointer = None
+    _components_checkpointer = None
+    _deadcode_checkpointer = None
+    _toolbuilder_checkpointer = None
 
 
 def main():

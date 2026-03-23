@@ -11,9 +11,9 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, START, StateGraph
 
 from chimera.core.state import OrchestratorState
-from chimera.nodes.spr4.architect import build_architect_node
-from chimera.nodes.spr4.critic import build_critic_node
-from chimera.nodes.tfb.stress_tester import build_stress_tester_node
+from chimera.nodes.pipeline.architect import build_architect_node
+from chimera.nodes.pipeline.critic import build_critic_node
+from chimera.nodes.balanced.stress_tester import build_stress_tester_node
 
 
 def _after_stress_tester(state: OrchestratorState) -> str:

@@ -10,7 +10,7 @@ This doc lists every command you can use from Cursor chat, what it triggers, and
 
 | You type | What triggers | Pattern |
 |---|---|---|
-| `aril <task>` | `chain_aril(task)` | Nitzotz + Sefirot |
+| `pipeline <task>` | `chain_pipeline(task)` | Pipeline + Balanced forces |
 | `graph <task>` | `chain(task)` | Supervisor (Option B) |
 | `research <question>` | `research(question)` | Direct Gemini CLI |
 | `architect <goal>` | `architect(goal)` | Direct Claude CLI |
@@ -33,15 +33,15 @@ The core execution engine. Four phases with quality-gated progression.
 
 **Start a pipeline:**
 ```
-aril add rate limiting to the API endpoints
+pipeline add rate limiting to the API endpoints
 ```
 
 ```
-aril migrate the database from SQLite to PostgreSQL
+pipeline migrate the database from SQLite to PostgreSQL
 ```
 
 ```
-aril add WebSocket support for real-time notifications, must work with existing FastAPI backend
+pipeline add WebSocket support for real-time notifications, must work with existing FastAPI backend
 ```
 
 **What happens:**
@@ -125,26 +125,21 @@ Appears only when a node fails. Chooses retry/escalate/decompose/exit.
 
 ---
 
-## Chayah — Continuous Evolution (Planned)
+## CLR — Continuous Refinement
 
-Self-improving loop that wraps Nitzotz. Not yet implemented.
+Self-improving loop. Assesses health, generates tasks, executes, validates, commits or reverts, loops until convergence.
 
-### Planned commands
-
-```
-ouroboros start
-```
-Start the evolution loop. Reads SPEC.md, assesses health, generates tasks, executes via Nitzotz, validates, commits or reverts, loops until convergence.
+### Commands
 
 ```
-ouroboros status
+refiner start
 ```
-Show current cycle, health score, spec progress, what's being worked on.
+Start the refinement loop. Reads SPEC.md, assesses health, generates tasks, executes, validates, commits or reverts, loops until convergence.
 
 ```
-ouroboros stop
+chain_refiner(max_cycles=50, budget=5.0)
 ```
-Gracefully stop after current cycle completes.
+Start via MCP tool with custom budget.
 
 ### What to expect
 
@@ -165,23 +160,22 @@ Gracefully stop after current cycle completes.
 
 ---
 
-## Nefesh — Parallel Swarm (Planned)
+## PDE — Parallel Swarm
 
-Parallel dispatch engine. Not yet implemented.
+Parallel dispatch engine. Decomposes into N independent tasks, fans out workers, merges atomically.
 
-### Planned commands
-
-```
-leviathan fix all pyright errors
-```
-Sovereign decomposes into N independent tasks, fans out workers, merges results atomically.
+### Commands
 
 ```
-leviathan add unit tests for all untested modules
+swarm fix all pyright errors
 ```
 
 ```
-leviathan migrate all API endpoints from v1 to v2
+swarm add unit tests for all untested modules
+```
+
+```
+swarm migrate all API endpoints from v1 to v2
 ```
 
 ### What to expect
@@ -199,16 +193,12 @@ Result: 7/8 tasks completed, 1 failed (timeout)
 
 ---
 
-## Klipah — Graduated Dispatch (Planned)
+## PDE-F — Graduated Dispatch
 
-Extension to Nefesh for tasks with layered dependencies. Not yet implemented.
-
-### Planned commands
-
-Klipah is triggered automatically by Nefesh's Sovereign when it detects task dependencies. No separate command — the Sovereign chooses flat or Klipah dispatch based on the task manifest.
+Extension to PDE for tasks with layered dependencies. Triggered automatically when the decomposer detects task dependencies. No separate command.
 
 ```
-leviathan build a REST API with auth, admin dashboard, and payment integration
+swarm build a REST API with auth, admin dashboard, and payment integration
 ```
 
 ### What to expect
@@ -227,26 +217,21 @@ Result: all 10 tasks completed across 5 generations
 
 ---
 
-## Ein Sof — Meta-Orchestrator (Planned)
+## HVD — Meta-Orchestrator
 
-The autonomous supervisor. Not yet implemented.
+The autonomous supervisor. Monitors the repo, decides what to run, spawns patterns as needed.
 
-### Planned commands
-
-```
-muther start
-```
-Start Ein Sof. It monitors the repo, decides what to run, spawns Chayah/Nefesh/Nitzotz as needed.
+### Commands
 
 ```
-muther status
+hypervisor start
 ```
-Show what Ein Sof is doing — active entities, health state, budget usage.
+Start the hypervisor. Monitors repo health, dispatches refinement/swarm/pipeline as needed.
 
 ```
-muther stop
+chain_hypervisor(budget=10.0)
 ```
-Gracefully shut down all spawned entities and exit.
+Start via MCP tool with custom daily budget.
 
 ### What to expect
 
@@ -316,9 +301,15 @@ These keywords are defined in `.cursor/rules/mcp-routing.mdc`. When Cursor sees 
 
 | Keyword prefix | Routes to | Notes |
 |---|---|---|
-| `aril` | `chain_aril()` | Full Nitzotz + Sefirot pipeline |
+| `pipeline` | `chain_pipeline()` | Full pipeline with balanced forces |
 | `graph` | `chain()` | Option B supervisor pipeline |
-| `research`, `deep dive`, `investigate` | `research()` | Gemini CLI |
+| `refiner start` | `chain_refiner()` | Continuous refinement loop |
+| `swarm` | `swarm()` | Parallel dispatch |
+| `hypervisor start` | `chain_hypervisor()` | Meta-orchestrator |
+| `components validate` | `chain_components()` | Component library validation |
+| `deadcode start` | `chain_deadcode()` | Dead code elimination |
+| `toolbuilder start` | `chain_toolbuilder()` | Proactive tool-builder |
+| `research`, `deep dive` | `research()` | Gemini CLI |
 | `plan`, `design`, `architect` | `architect()` | Claude CLI |
 | `classify` | `classify()` | Fast tier classification |
 | `status` | `status()` | Job status |
@@ -327,9 +318,3 @@ These keywords are defined in `.cursor/rules/mcp-routing.mdc`. When Cursor sees 
 | `history` | `history()` | Checkpoint history |
 | `rewind` | `rewind()` | Time-travel |
 | `health` | `health()` | Server health check |
-| `gemini` | Gemini tools | Routes by intent |
-| `claude` | Claude tools | Routes by intent |
-| `orchestrate`, `deliberate` | `orchestrate()` | Multi-model deliberation |
-| `ouroboros start` | `chain_ouroboros()` | Planned — continuous evolution |
-| `leviathan` | `swarm()` | Planned — parallel dispatch |
-| `muther start` | `chain_muther()` | Planned — meta-orchestrator |

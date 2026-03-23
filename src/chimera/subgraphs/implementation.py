@@ -13,11 +13,11 @@ from langgraph.graph import END, START, StateGraph
 
 from chimera.core.guards import require_plan_approved
 from chimera.core.state import OrchestratorState
-from chimera.nodes.tfb.scope_analyzer import build_scope_analyzer_node
-from chimera.nodes.tfb.stress_tester import build_stress_tester_node
-from chimera.nodes.tfb.compliance import build_compliance_node
-from chimera.nodes.spr4.implement import build_implement_node
-from chimera.nodes.tfb.arbitrator import build_arbitrator_node
+from chimera.nodes.balanced.scope_analyzer import build_scope_analyzer_node
+from chimera.nodes.balanced.stress_tester import build_stress_tester_node
+from chimera.nodes.balanced.compliance import build_compliance_node
+from chimera.nodes.pipeline.implement import build_implement_node
+from chimera.nodes.balanced.arbitrator import build_arbitrator_node
 
 
 async def _guard_node(state: OrchestratorState) -> dict:

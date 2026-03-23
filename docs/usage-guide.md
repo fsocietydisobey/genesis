@@ -116,18 +116,18 @@ rewind(thread_id="abc-def-123", checkpoint_id="ckpt-456", new_task="Same feature
 
 Nitzotz (The Divine Sparks) — the core pipeline within **Genesis** (formerly Malkuth), the unified autonomous system. A structured 4-phase pipeline with quality-gated progression, balanced forces (Sefirot), and persistent memory. More predictable and safer than Option B's free-form supervisor.
 
-### chain_aril
+### chain_pipeline
 
 Start the Nitzotz pipeline. Runs through four phases automatically, pausing for human approval in the review phase.
 
 **Intent:** "Handle this complex task through a disciplined process — research it, design it, build it, then let me review."
 
 ```
-chain_aril("Add rate limiting to the API endpoints")
+chain_pipeline("Add rate limiting to the API endpoints")
 ```
 
 ```
-chain_aril("Migrate the checkpoint storage from SQLite to PostgreSQL", context="Must support concurrent read/write from multiple server instances")
+chain_pipeline("Migrate the checkpoint storage from SQLite to PostgreSQL", context="Must support concurrent read/write from multiple server instances")
 ```
 
 **What happens inside:**
@@ -256,7 +256,7 @@ All deterministic — no LLM calls. If Yesod fails, the pipeline routes back for
 
 ```
 # Future command
-chain_ouroboros(spec="SPEC.md", max_cycles=50, budget=5.0)
+chain_refiner(spec="SPEC.md", max_cycles=50, budget=5.0)
 ```
 
 Continuous loop: assess health → generate task from SPEC.md → execute via Nitzotz → validate → commit or revert → repeat until convergence.
@@ -291,7 +291,7 @@ When the Sovereign detects tasks with dependencies, it dispatches in graduated g
 ```
 # Future command
 # Run as daemon: scripts/muther.sh
-# Or via MCP: chain_muther(spec="SPEC.md", budget=10.0)
+# Or via MCP: chain_hypervisor(spec="SPEC.md", budget=10.0)
 ```
 
 Monitors the repository, decides whether to spawn Chayah (steady improvement), Nefesh (batch fix), or Nitzotz (single task). Enforces immutable directives. Controls compute budgets. The "leave it running" system.
@@ -306,7 +306,7 @@ In Cursor, you don't need to type function calls. Just start your message with a
 
 | You type in chat | What Cursor calls | What it does |
 |---|---|---|
-| `aril add rate limiting to the API` | `chain_aril("add rate limiting to the API")` | Full Nitzotz + Sefirot pipeline |
+| `pipeline add rate limiting to the API` | `chain_pipeline("add rate limiting to the API")` | Full pipeline with balanced forces |
 | `graph refactor the auth module` | `chain("refactor the auth module")` | Option B supervisor pipeline |
 | `research how do rate limiters work` | `research("how do rate limiters work")` | Gemini CLI exploration |
 | `architect add WebSocket support` | `architect("add WebSocket support")` | Claude CLI design |
@@ -321,15 +321,16 @@ In Cursor, you don't need to type function calls. Just start your message with a
 | `gemini <anything>` | Routes to Gemini tool by intent | Research, explain, compare |
 | `claude <anything>` | Routes to Claude tool by intent | Architect, implement, review, debug |
 
-### Planned (not yet available)
+### Additional tools
 
 | You type in chat | What it will do |
 |---|---|
-| `ouroboros start` | Start Chayah continuous evolution loop |
-| `ouroboros stop` | Stop evolution loop gracefully |
-| `leviathan fix all pyright errors` | Start Nefesh parallel swarm |
-| `muther start` | Start Ein Sof meta-orchestrator |
-| `muther stop` | Stop Ein Sof gracefully |
+| `refiner start` | Start CLR continuous refinement loop |
+| `swarm fix all pyright errors` | Start PDE parallel swarm |
+| `hypervisor start` | Start HVD meta-orchestrator |
+| `components validate` | Run ACL component library validation |
+| `deadcode start` | Run DCE dead code elimination |
+| `toolbuilder start` | Run POB proactive tool-builder |
 
 ---
 
@@ -343,7 +344,7 @@ For direct MCP tool calls (Claude Code, MCP Inspector, or when Cursor routing do
 | `architect(goal)` | Claude CLI design | "Design the solution" |
 | `classify(task)` | Fast tier classification | "What kind of task is this?" |
 | `chain(task)` | Option B supervisor pipeline | "Handle this with dynamic routing" |
-| `chain_aril(task)` | Genesis (Nitzotz pipeline) + Sefirot | "Handle this with structured phases and quality gates" |
+| `chain_pipeline(task)` | Pipeline with balanced forces | "Handle this with structured phases and quality gates" |
 | `status(job_id)` | Poll job progress | "What's happening?" |
 | `approve(job_id)` | Approve paused job | "Looks good, proceed" |
 | `approve(job_id, feedback)` | Reject with feedback | "Change X before proceeding" |

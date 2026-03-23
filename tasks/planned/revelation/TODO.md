@@ -16,7 +16,7 @@ flowchart LR
 
 ## Phase 1: Sitra Achra — shadow worktree management
 
-- [ ] Create `src/genesis/tools/worktree.py`:
+- [ ] Create `src/chimera/tools/worktree.py`:
   - [ ] `create_shadow()` — `git worktree add ../sitra-achra -b revelation`
   - [ ] `destroy_shadow()` — `git worktree remove ../sitra-achra`
   - [ ] `merge_shadow()` — merge revelation branch back to main if tests pass
@@ -28,7 +28,7 @@ flowchart LR
 
 ## Phase 2: Seeker — static analysis to find dead Klipot
 
-- [ ] Create `src/genesis/nodes/revelation/seeker.py`:
+- [ ] Create `src/chimera/nodes/revelation/seeker.py`:
   - [ ] Run `vulture` for dead code detection (functions, classes, variables with zero references)
   - [ ] Run `ruff check --select F401,F841` for unused imports and variables
   - [ ] Custom AST walker: find functions with zero callers across the project
@@ -50,7 +50,7 @@ flowchart LR
 
 ## Phase 3: Shevirah — intentional shattering of monoliths
 
-- [ ] Create `src/genesis/nodes/revelation/shatter.py`:
+- [ ] Create `src/chimera/nodes/revelation/shatter.py`:
   - [ ] Identify files exceeding a size threshold (e.g., > 500 lines)
   - [ ] Parse AST to identify logical boundaries (class groups, function clusters, import blocks)
   - [ ] Trace internal call graph to find which pieces depend on which
@@ -64,7 +64,7 @@ flowchart LR
 
 ## Phase 4: Maveth — the reaper (deletion engine)
 
-- [ ] Create `src/genesis/nodes/revelation/maveth.py`:
+- [ ] Create `src/chimera/nodes/revelation/maveth.py`:
   - [ ] Takes KlipotMap from Seeker + ShatterPlan from Shevirah
   - [ ] Deletes identified dead code targets
   - [ ] Removes unused imports and dependencies
@@ -103,14 +103,14 @@ flowchart LR
 
 ## Phase 6: Revelation pipeline graph
 
-- [ ] Create `src/genesis/graphs/revelation.py` with `build_revelation_graph()`:
+- [ ] Create `src/chimera/graphs/revelation.py` with `build_revelation_graph()`:
   ```
   START → create_shadow → seeker → shevirah → maveth → sheol → test → merge_or_revert → END
   ```
 - [ ] Conditional: if tests fail after Maveth → revert and retry with smaller batch
 - [ ] Conditional: if shatter plan needs human approval → interrupt (HITL)
 - [ ] Progress messages: `[revelation] Seeker: found 12 dead functions`, `[revelation] Maveth: removed 340 lines`
-- [ ] Add `chain_revelation` MCP tool to server/mcp.py
+- [ ] Add `chain_deadcode` MCP tool to server/mcp.py
 - [ ] Checkpointer: separate `revelation_checkpoints.db`
 - [ ] Test: run full pipeline on a codebase with planted dead code
 
@@ -122,5 +122,5 @@ flowchart LR
   - [ ] When: health is good, spec is complete, but codebase size is growing or dead code > 10%
   - [ ] Triage dispatches to Revelation instead of idling
 - [ ] Ein Sof can dispatch Revelation directly when it detects bloat
-- [ ] Add Revelation to the Cursor keyword routing: `revelation start` → `chain_revelation()`
+- [ ] Add Revelation to the Cursor keyword routing: `revelation start` → `chain_deadcode()`
 - [ ] Test: Chayah triage with healthy codebase + growing size → verify it dispatches Revelation

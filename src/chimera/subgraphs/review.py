@@ -13,7 +13,7 @@ from langgraph.graph import END, START, StateGraph
 
 from chimera.core.state import OrchestratorState
 from chimera.nodes.human_review import build_human_review_node
-from chimera.nodes.tfb.integration_gate import build_integration_gate_node
+from chimera.nodes.balanced.integration_gate import build_integration_gate_node
 
 
 async def _set_review_handoff(state: OrchestratorState) -> dict:

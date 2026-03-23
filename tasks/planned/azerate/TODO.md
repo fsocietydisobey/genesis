@@ -16,7 +16,7 @@ flowchart LR
 
 ## Phase 1: The Watcher — behavioral observation
 
-- [ ] Create `src/genesis/nodes/azerate/watcher.py`:
+- [ ] Create `src/chimera/nodes/azerate/watcher.py`:
   - [ ] Read `.bash_history` or `.zsh_history` — extract last N commands
   - [ ] Read `git log --oneline -50` — recent commit patterns
   - [ ] Read `git log --stat -20` — which files change most often
@@ -39,7 +39,7 @@ flowchart LR
 
 ## Phase 2: Friction analyzer — identify patterns
 
-- [ ] Create `src/genesis/nodes/azerate/friction.py`:
+- [ ] Create `src/chimera/nodes/azerate/friction.py`:
   - [ ] Takes `BehaviorSignals` from the Watcher
   - [ ] Groups signals by category (CLI friction, build friction, test friction, code friction)
   - [ ] Ranks by impact × frequency — highest friction first
@@ -59,7 +59,7 @@ flowchart LR
 
 ## Phase 3: Tool proposer — decide what to build
 
-- [ ] Create `src/genesis/nodes/azerate/proposer.py`:
+- [ ] Create `src/chimera/nodes/azerate/proposer.py`:
   - [ ] Takes the FrictionMap + rejection memory (what was previously rejected)
   - [ ] Filters out friction points that match previously rejected PRs
   - [ ] Selects the top 1 friction point to address (one tool per cycle)
@@ -75,7 +75,7 @@ flowchart LR
 
 ## Phase 4: The Forge — build the tool
 
-- [ ] Create `src/genesis/nodes/azerate/forge.py`:
+- [ ] Create `src/chimera/nodes/azerate/forge.py`:
   - [ ] Takes the ToolSpec from the proposer
   - [ ] Creates a git branch: `azerate/<tool-name>`
   - [ ] Uses Claude CLI to write the tool (respects Otiyot if available)
@@ -93,7 +93,7 @@ flowchart LR
 
 ## Phase 5: PR creator — present to human
 
-- [ ] Create `src/genesis/nodes/azerate/pr_creator.py`:
+- [ ] Create `src/chimera/nodes/azerate/pr_creator.py`:
   - [ ] Creates a Pull Request on the current repo (via `gh pr create` or git push + manual)
   - [ ] PR description includes:
     - What friction was observed (with evidence)
@@ -134,11 +134,11 @@ flowchart LR
   - [ ] On a cron schedule (nightly): `scripts/azerate.sh`
   - [ ] Dispatched by Ein Sof after Genesis completes a cycle
   - [ ] Manually via MCP tool: `azerate start`
-- [ ] Create `src/genesis/graphs/azerate.py` with `build_azerate_graph()`:
+- [ ] Create `src/chimera/graphs/azerate.py` with `build_azerate_graph()`:
   ```
   START → watcher → friction_analyzer → proposer → forge → pr_creator → END
   ```
-- [ ] Add `chain_azerate` MCP tool to `server/mcp.py`
-- [ ] Add to Cursor rules: `azerate start` → `chain_azerate()`
+- [ ] Add `chain_toolbuilder` MCP tool to `server/mcp.py`
+- [ ] Add to Cursor rules: `azerate start` → `chain_toolbuilder()`
 - [ ] Ein Sof dispatch: after Genesis cycle completes, optionally run Azerate analysis
 - [ ] Test: full pipeline — observe fake history, identify friction, build tool, create PR description

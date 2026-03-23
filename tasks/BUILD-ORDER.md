@@ -27,9 +27,9 @@ flowchart LR
     style L fill:#48bb78,stroke:#276749,color:#fff
     style M fill:#48bb78,stroke:#276749,color:#fff
     style F fill:#48bb78,stroke:#276749,color:#fff
-    style OT fill:#ffd700,stroke:#b8860b,color:#000
-    style REV fill:#e53e3e,stroke:#9b2c2c,color:#fff
-    style AZ fill:#9f7aea,stroke:#553c9a,color:#fff
+    style OT fill:#48bb78,stroke:#276749,color:#fff
+    style REV fill:#48bb78,stroke:#276749,color:#fff
+    style AZ fill:#48bb78,stroke:#276749,color:#fff
 ```
 
 ---
@@ -47,7 +47,7 @@ flowchart LR
 - `graph_server/nodes/critic.py` — phase-specific critic (validator + handoff routing)
 - `graph_server/subgraphs/` — 4 phase subgraphs (research, planning, implementation, review)
 - `graph_server/graphs/aril.py` — parent graph with phase router
-- `graph_server/server/mcp.py` — `chain_aril` tool with phase-aware progress
+- `server/mcp.py` — `chain_pipeline` tool with phase-aware progress
 
 **Task docs:** [aril/](aril/)
 
@@ -171,31 +171,58 @@ flowchart LR
 
 ---
 
-## 7. Otiyot — The Alphabet (PLANNED)
+## 7. Otiyot — The Alphabet (DONE)
 
-**Status:** Not started
+**Status:** Implemented
 
-**What it is:** Immutable atomic primitives — the sacred letters that agents MUST use. Prevents hallucination by restricting agents to tested, verified building blocks. Includes Tzeruf (combinatorial testing engine) that validates the alphabet is sound.
+**What it is:** Immutable atomic primitives — the sacred letters that agents MUST use. Prevents hallucination by restricting agents to tested, verified building blocks. Includes combinatorial validation engine that tests every component in isolation and pairwise.
+
+**What was built:**
+- `core/component_registry.py` — Registry of 6 built-in components + SQLite storage + validation reports
+- `nodes/components/scanner.py` — AST-based violation detection across codebase
+- `nodes/components/validator.py` — 3-level combinatorial testing (isolation → pairs → scenarios)
+- `nodes/components/enforcer.py` — Post-implementation compliance gate
+- `graphs/components.py` — init → scan → validate → enforce → report
+- MCP tool: `chain_components()`
 
 **Task docs:** [planned/otiyot/](planned/otiyot/)
 
 ---
 
-## 8. Revelation — The Unveiling (PLANNED)
+## 8. Revelation — The Unveiling (DONE)
 
-**Status:** Not started
+**Status:** Implemented
 
-**What it is:** The purification pipeline. Enters the Sitra Achra (shadow git worktree) to find and destroy dead code, bloated dependencies, and stagnant abstractions. Genesis builds — Revelation purges.
+**What it is:** The purification pipeline. Enters a shadow git worktree to find and destroy dead code, bloated dependencies, and stagnant abstractions. Genesis builds — Revelation purges.
+
+**What was built:**
+- `tools/worktree.py` — Git worktree create/destroy/merge/test
+- `core/deadcode_archive.py` — SQLite archive of deleted code (prevents resurrection)
+- `nodes/deadcode/seeker.py` — 3-pass static analysis (ruff, AST zero-callers, large files)
+- `nodes/deadcode/shatterer.py` — Monolith split proposals via AST
+- `nodes/deadcode/reaper.py` — Risk-ordered batch deletion with test rollback
+- `graphs/deadcode.py` — shadow → seek → shatter → reap → merge → cleanup
+- MCP tool: `chain_deadcode()`
 
 **Task docs:** [planned/revelation/](planned/revelation/)
 
 ---
 
-## 9. Azerate — The Shadow Creator (PLANNED)
+## 9. Azerate — The Shadow Creator (DONE)
 
-**Status:** Not started
+**Status:** Implemented
 
 **What it is:** The proactive, unsolicited tool-builder. The dark mirror of Genesis. Watches your behavior (shell history, git patterns, build metrics), identifies friction, and builds developer tools without being asked. Outputs as PRs for human approval.
+
+**What was built:**
+- `core/toolbuilder_memory.py` — Rejection memory (prevents rebuilding rejected tools)
+- `nodes/toolbuilder/watcher.py` — Shell history, git patterns, file metrics
+- `nodes/toolbuilder/friction.py` — LLM-ranked friction points
+- `nodes/toolbuilder/proposer.py` — Cool-down + rejection filtering + spec generation
+- `nodes/toolbuilder/forge.py` — Branch creation + Claude CLI + path validation
+- `nodes/toolbuilder/pr_creator.py` — PR creation with evidence
+- `graphs/toolbuilder.py` — watch → analyze → propose → forge → PR
+- MCP tool: `chain_toolbuilder()`
 
 **Task docs:** [planned/azerate/](planned/azerate/)
 
@@ -205,12 +232,12 @@ flowchart LR
 
 | # | Pattern | Status | MCP tool | What it does |
 |---|---|---|---|---|
-| 1 | Nitzotz | **Done** | `chain_nitzotz` | 4-phase pipeline (research → plan → implement → review) |
-| 2 | Sefirot | **Done** | (inside Nitzotz) | Balanced forces (Gevurah, Chesed, Tiferet, Hod, Netzach, Yesod) |
-| 3 | Chayah | **Done** | `chain_chayah` | Continuous evolution loop |
-| 4 | Nefesh | **Done** | `swarm` | Parallel swarm dispatch |
-| 5 | Ein Sof | **Done** | `chain_ein_sof` | Meta-orchestrator |
-| 6 | Klipah | **Done** | (inside `swarm`) | Graduated Fibonacci dispatch |
-| 7 | Otiyot | Planned | — | Immutable atomic primitives |
-| 8 | Revelation | Planned | `chain_revelation` | Dead code purging |
-| 9 | Azerate | Planned | `chain_azerate` | Proactive tool-builder |
+| 1 | Nitzotz (SPR-4) | **Done** | `chain_pipeline` | 4-phase pipeline (research → plan → implement → review) |
+| 2 | Sefirot (TFB) | **Done** | (inside pipeline) | Balanced forces (stress_tester, scope_analyzer, arbitrator, etc.) |
+| 3 | Chayah (CLR) | **Done** | `chain_refiner` | Continuous evolution loop |
+| 4 | Nefesh (PDE) | **Done** | `swarm` | Parallel swarm dispatch |
+| 5 | Ein Sof (HVD) | **Done** | `chain_hypervisor` | Meta-orchestrator |
+| 6 | Klipah (PDE-F) | **Done** | (inside `swarm`) | Graduated Fibonacci dispatch |
+| 7 | Otiyot (ACL) | **Done** | `chain_components` | Immutable atomic primitives |
+| 8 | Revelation (DCE) | **Done** | `chain_deadcode` | Dead code purging |
+| 9 | Azerate (POB) | **Done** | `chain_toolbuilder` | Proactive tool-builder |

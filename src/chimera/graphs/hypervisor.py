@@ -17,13 +17,12 @@ from langgraph.graph import END, START, StateGraph
 
 from chimera.config import OrchestratorConfig, get_classify_model
 from chimera.core.directives import check_directives
-from chimera.core.fitness import assess_health
 from chimera.core.resource_control import GlobalBudget
 from chimera.core.state import OrchestratorState
-from chimera.nodes.clr.health_scanner import build_health_scanner_node
-from chimera.nodes.hvd_dispatcher import build_hvd_dispatcher_node
-from chimera.tools.git_tools import git_checkpoint, git_revert
 from chimera.log import get_logger
+from chimera.nodes.hypervisor_dispatcher import build_hypervisor_dispatcher_node
+from chimera.nodes.refiner.health_scanner import build_health_scanner_node
+from chimera.tools.git_tools import git_checkpoint, git_revert
 
 log = get_logger("hvd")
 
@@ -37,7 +36,7 @@ async def _init_node(state: OrchestratorState) -> dict:
 
     return {
         "global_budget": budget.to_dict(),
-        "hvd_cycle": 0,
+        "hypervisor_cycle": 0,
         "active_entities": [],
         "history": history + ["hvd: initialized — contraction (contraction) applied"],
     }
@@ -57,11 +56,11 @@ async def _execute_pattern_node(state: OrchestratorState) -> dict:
     decision = state.get("dispatch_decision") or {}
     pattern = decision.get("pattern", "idle")
     task_desc = decision.get("task_description", "")
-    cycle = state.get("hvd_cycle", 0) + 1
+    cycle = state.get("hypervisor_cycle", 0) + 1
 
     if pattern == "idle":
         return {
-            "hvd_cycle": cycle,
+            "hypervisor_cycle": cycle,
             "history": history + [f"hvd(cycle {cycle}): idle — nothing to do"],
         }
 
@@ -74,7 +73,7 @@ async def _execute_pattern_node(state: OrchestratorState) -> dict:
     # Future: spawn the actual CLR/PDE/SPR-4 graph as a background job
     prompt = build_prompt(
         "You are a senior software engineer. Execute this task precisely.",
-        f"## Task\n\n{task_desc}" if task_desc else "## Task\n\nImprove the codebase based on current health assessment.",
+        f"## Task\n\n{task_desc}" if task_desc else "## Task\n\nImprove the codebase based on health assessment.",
         f"## Pattern: {pattern}",
     )
 
@@ -82,13 +81,13 @@ async def _execute_pattern_node(state: OrchestratorState) -> dict:
         result = await run_claude(prompt, timeout=600, permission_mode="acceptEdits")
         return {
             "implementation_result": result,
-            "hvd_cycle": cycle,
+            "hypervisor_cycle": cycle,
             "history": history + [f"hvd(cycle {cycle}): {pattern} completed"],
         }
     except Exception as e:
         log.error("cycle %d: %s execution failed — %s", cycle, pattern, e)
         return {
-            "hvd_cycle": cycle,
+            "hypervisor_cycle": cycle,
             "history": history + [f"hvd(cycle {cycle}): {pattern} failed — {e}"],
         }
 
@@ -96,7 +95,7 @@ async def _execute_pattern_node(state: OrchestratorState) -> dict:
 async def _directive_check_node(state: OrchestratorState) -> dict:
     """Check the changes against DIRECTIVES.md (Special Order 937)."""
     history = list(state.get("history", []))
-    cycle = state.get("hvd_cycle", 0)
+    cycle = state.get("hypervisor_cycle", 0)
 
     # Get the diff
     proc = await asyncio.create_subprocess_exec(
@@ -154,7 +153,7 @@ def _after_dispatch(state: OrchestratorState) -> str:
 
 def _after_directive(state: OrchestratorState) -> str:
     """Continue looping or exit."""
-    cycle = state.get("hvd_cycle", 0)
+    cycle = state.get("hypervisor_cycle", 0)
     max_cycles = 20  # HVD's own cycle limit
 
     if cycle >= max_cycles:
@@ -167,7 +166,7 @@ def _after_directive(state: OrchestratorState) -> str:
     return "assess"  # Loop back
 
 
-async def build_hvd_graph(config: OrchestratorConfig):
+async def build_hypervisor_graph(config: OrchestratorConfig):
     """Build and compile the HVD meta-orchestrator graph.
 
     Args:
@@ -196,7 +195,7 @@ async def build_hvd_graph(config: OrchestratorConfig):
 
     model = get_classify_model(config)
     health_scanner_node = build_health_scanner_node()
-    hvd_dispatch_node = build_hvd_dispatcher_node(model)
+    hvd_dispatch_node = build_hypervisor_dispatcher_node(model)
 
     graph = StateGraph(OrchestratorState)
 

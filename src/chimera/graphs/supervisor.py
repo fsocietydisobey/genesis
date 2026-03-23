@@ -27,6 +27,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
 from chimera.config import OrchestratorConfig, get_classify_model
+from chimera.core.state import OrchestratorState
 from chimera.log import get_logger
 from chimera.nodes import (
     build_architect_node,
@@ -37,7 +38,6 @@ from chimera.nodes import (
     build_supervisor_node,
     build_validator_node,
 )
-from chimera.core.state import OrchestratorState
 
 log = get_logger("graph")
 

@@ -15,10 +15,10 @@ from langgraph.types import Send
 
 from chimera.config import OrchestratorConfig, get_classify_model
 from chimera.core.state import OrchestratorState
-from chimera.nodes.pde.task_decomposer import build_task_decomposer_node, sort_into_generations, pdef_budget
-from chimera.nodes.pde.worker import build_pde_worker_node
-from chimera.nodes.pde.aggregator import build_pde_aggregator_node
 from chimera.log import get_logger
+from chimera.nodes.swarm.aggregator import build_swarm_aggregator_node
+from chimera.nodes.swarm.task_decomposer import build_swarm_decomposer_node, pdef_budget, sort_into_generations
+from chimera.nodes.swarm.worker import build_swarm_worker_node
 
 log = get_logger("pde")
 
@@ -89,7 +89,7 @@ def _fan_out(state: OrchestratorState) -> list[Send]:
     return sends
 
 
-async def build_pde_graph(config: OrchestratorConfig):
+async def build_swarm_graph(config: OrchestratorConfig):
     """Build and compile the PDE parallel dispatch graph.
 
     Args:
@@ -117,9 +117,9 @@ async def build_pde_graph(config: OrchestratorConfig):
     log.info("PDE checkpointer ready: %s", db_path)
 
     model = get_classify_model(config)
-    task_decomposer_node = build_task_decomposer_node(model)
-    pde_worker_node = build_pde_worker_node()
-    merge_node = build_pde_aggregator_node()
+    task_decomposer_node = build_swarm_decomposer_node(model)
+    pde_worker_node = build_swarm_worker_node()
+    merge_node = build_swarm_aggregator_node()
 
     graph = StateGraph(OrchestratorState)
 

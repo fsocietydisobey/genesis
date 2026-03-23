@@ -2,7 +2,7 @@
 
 The purification pipeline. Enters the Sitra Achra (shadow branch) to find and destroy dead code.
 
-**Paths:** New nodes in `src/genesis/nodes/revelation/`. Graph in `src/genesis/graphs/revelation.py`. Worktree tools in `src/genesis/tools/worktree.py`. Sheol table in Da'at store.
+**Paths:** New nodes in `src/chimera/nodes/revelation/`. Graph in `src/chimera/graphs/revelation.py`. Worktree tools in `src/chimera/tools/worktree.py`. Sheol table in Da'at store.
 
 **Dependencies:** Requires Genesis core (Nitzotz, Sefirot) to be implemented. Integrates with Chayah (triage dispatches "purge" action) and Ein Sof (direct dispatch). Da'at/Gematria enables Sheol memory.
 
@@ -33,14 +33,14 @@ sequenceDiagram
 
 **Approach:**
 
-- New module `src/genesis/tools/worktree.py` with async git worktree management.
+- New module `src/chimera/tools/worktree.py` with async git worktree management.
 - `create_shadow()` creates the worktree + branch. `destroy_shadow()` cleans up.
 - All Revelation nodes receive the shadow worktree path and set `cwd` to it for subprocess calls.
 - `merge_shadow()` merges the revelation branch to main, then removes the worktree.
 
 **Files to add:**
 
-- `src/genesis/tools/worktree.py`
+- `src/chimera/tools/worktree.py`
 
 ---
 
@@ -66,7 +66,7 @@ flowchart TB
 
 **Approach:**
 
-- New node `src/genesis/nodes/revelation/seeker.py`.
+- New node `src/chimera/nodes/revelation/seeker.py`.
 - Runs five analysis passes, all via `asyncio.create_subprocess_exec`:
   1. `vulture src/` — finds unused functions, classes, variables
   2. `ruff check --select F401,F841 --output-format json src/` — unused imports
@@ -78,7 +78,7 @@ flowchart TB
 
 **Files to add:**
 
-- `src/genesis/nodes/revelation/seeker.py`
+- `src/chimera/nodes/revelation/seeker.py`
 
 ---
 
@@ -88,7 +88,7 @@ flowchart TB
 
 **Approach:**
 
-- New node `src/genesis/nodes/revelation/shatter.py`.
+- New node `src/chimera/nodes/revelation/shatter.py`.
 - Threshold: files > 500 lines get analyzed for splitting.
 - Uses Python's `ast` module to parse the file and identify:
   - Class boundaries
@@ -100,7 +100,7 @@ flowchart TB
 
 **Files to add:**
 
-- `src/genesis/nodes/revelation/shatter.py`
+- `src/chimera/nodes/revelation/shatter.py`
 
 ---
 
@@ -128,7 +128,7 @@ flowchart TB
 
 **Approach:**
 
-- New node `src/genesis/nodes/revelation/maveth.py`.
+- New node `src/chimera/nodes/revelation/maveth.py`.
 - Processes targets in order of risk: safe → moderate → risky.
 - Each risk level is a batch. After deleting a batch, run `pytest` in the shadow worktree.
 - If tests fail → revert that batch, mark those targets as "actually needed," and move on.
@@ -137,7 +137,7 @@ flowchart TB
 
 **Files to add:**
 
-- `src/genesis/nodes/revelation/maveth.py`
+- `src/chimera/nodes/revelation/maveth.py`
 
 ---
 
@@ -165,11 +165,11 @@ flowchart TB
 - When Genesis runs (specifically when Chesed proposes new code), query Sheol:
   - If Chesed proposes adding a function that's textually similar to something in Sheol → warn.
   - Future: use vector embeddings (Gematria) for semantic similarity, not just text matching.
-- New module `src/genesis/core/sheol.py` with `archive_deletion()` and `check_sheol()`.
+- New module `src/chimera/core/sheol.py` with `archive_deletion()` and `check_sheol()`.
 
 **Files to add:**
 
-- `src/genesis/core/sheol.py`
+- `src/chimera/core/sheol.py`
 
 ---
 
@@ -197,19 +197,19 @@ flowchart TB
 
 **Approach:**
 
-- New graph `src/genesis/graphs/revelation.py` with `build_revelation_graph()`.
+- New graph `src/chimera/graphs/revelation.py` with `build_revelation_graph()`.
 - Nodes: `create_shadow`, `seeker`, `shevirah`, `human_approval` (HITL), `maveth`, `archive_to_sheol`, `test_shadow`, `merge_or_revert`, `destroy_shadow`, `report`.
 - Conditional: test failure → revert and retry with smaller batch.
 - Conditional: structural changes → HITL gate.
-- Add `chain_revelation` MCP tool to `server/mcp.py`.
+- Add `chain_deadcode` MCP tool to `server/mcp.py`.
 - Separate checkpointer: `revelation_checkpoints.db`.
 
 **Files to add:**
 
-- `src/genesis/graphs/revelation.py`
-- `src/genesis/nodes/revelation/__init__.py`
-- Update `src/genesis/graphs/__init__.py` — add export
-- Update `src/genesis/server/mcp.py` — add `chain_revelation` tool
+- `src/chimera/graphs/revelation.py`
+- `src/chimera/nodes/revelation/__init__.py`
+- Update `src/chimera/graphs/__init__.py` — add export
+- Update `src/chimera/server/mcp.py` — add `chain_deadcode` tool
 
 ---
 
@@ -227,8 +227,8 @@ flowchart TB
 
 **Files to change:**
 
-- `src/genesis/nodes/evolution/triage.py` — add "purge" action
-- `src/genesis/nodes/ein_sof_dispatch.py` — add "revelation" pattern
+- `src/chimera/nodes/evolution/triage.py` — add "purge" action
+- `src/chimera/nodes/ein_sof_dispatch.py` — add "revelation" pattern
 - `.cursor/rules/mcp-routing.mdc` — add keyword
 
 ---

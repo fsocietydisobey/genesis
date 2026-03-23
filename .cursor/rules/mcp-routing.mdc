@@ -12,11 +12,14 @@ You have access to MCP tools from the `chimera` server. Use them when the situat
 When the user starts a message with these keywords, ALWAYS use the corresponding MCP tool:
 
 ### Genesis pipeline tools
-- **"spr4 ..."** or **"pipeline ..."** → `chain_spr4(task_description)` — SPR-4 pipeline with TFB balanced forces
+- **"pipeline ..."** → `chain_pipeline(task_description)` — SPR-4 pipeline with balanced forces
 - **"graph ..."** → `chain(task_description)` — Supervisor pipeline
-- **"clr start"** or **"evolve start"** → `chain_clr()` — CLR continuous evolution loop
-- **"pde ..."** or **"swarm ..."** → `swarm(goal)` — PDE parallel dispatch
-- **"hvd start"** or **"supervisor start"** → `chain_hvd()` — HVD meta-orchestrator
+- **"refiner start"** or **"evolve start"** → `chain_refiner()` — Continuous refinement loop
+- **"swarm ..."** → `swarm(goal)` — Parallel dispatch
+- **"hypervisor start"** or **"supervisor start"** → `chain_hypervisor()` — Meta-orchestrator
+- **"components validate"** → `chain_components()` — ACL component library validation
+- **"deadcode start"** → `chain_deadcode()` — Dead code elimination in shadow worktree
+- **"toolbuilder start"** → `chain_toolbuilder()` — Proactive tool-builder
 - **"status"** → `status()` — show all jobs
 - **"approve"** → `approve(job_id="...")` — approve the most recent paused job
 - **"reject ..."** → `approve(job_id="...", feedback="...")` — reject with feedback
@@ -44,8 +47,8 @@ The full system is called **CHIMERA**. Reference docs: `docs/genesis-commands.md
 - The user explicitly uses a keyword trigger
 
 **Examples:**
-- `spr4 add rate limiting to the API endpoints` → `chain_spr4("add rate limiting to the API endpoints")`
+- `pipeline add rate limiting to the API endpoints` → `chain_pipeline("add rate limiting to the API endpoints")`
 - `swarm fix all pyright errors` → `swarm("fix all pyright errors")`
-- `clr start` → `chain_clr()`
-- `hvd start` → `chain_hvd()`
+- `refiner start` → `chain_refiner()`
+- `hypervisor start` → `chain_hypervisor()`
 - `approve` → approve the most recent paused job

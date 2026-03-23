@@ -93,7 +93,7 @@ flowchart TB
 ## MCP tool
 
 ```
-chain_aril(task_description, context?, thread_id?)
+chain_pipeline(task_description, context?, thread_id?)
 ```
 
 Starts the Nitzotz pipeline in the background. Use `status(job_id)` to poll progress — messages include `[phase]` tags. The pipeline pauses for human approval in the review phase.
@@ -118,7 +118,7 @@ Starts the Nitzotz pipeline in the background. Use `status(job_id)` to poll prog
 | `graph_server/subgraphs/planning.py` | Planning phase subgraph |
 | `graph_server/subgraphs/implementation.py` | Implementation phase subgraph |
 | `graph_server/subgraphs/review.py` | Review phase subgraph |
-| `graph_server/server/mcp.py` | chain_aril tool + Nitzotz progress messages |
+| `graph_server/server/mcp.py` | chain_pipeline tool + Nitzotz progress messages |
 
 ## Comparison with Option B
 

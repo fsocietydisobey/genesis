@@ -12,13 +12,13 @@ from __future__ import annotations
 from langgraph.graph import END, START, StateGraph
 
 from chimera.config import OrchestratorConfig, get_classify_model
-from chimera.core.clr_memory import get_last_cycle_number, get_recent_cycles, log_cycle
 from chimera.core.fitness import assess_health
+from chimera.core.refiner_memory import get_last_cycle_number, get_recent_cycles, log_cycle
 from chimera.core.state import OrchestratorState
-from chimera.nodes.clr.health_scanner import build_health_scanner_node
-from chimera.nodes.clr.classifier import build_classifier_node
-from chimera.tools.git_tools import git_checkpoint, git_diff_files, git_revert, is_self_modification
 from chimera.log import get_logger
+from chimera.nodes.refiner.classifier import build_classifier_node
+from chimera.nodes.refiner.health_scanner import build_health_scanner_node
+from chimera.tools.git_tools import git_checkpoint, git_diff_files, git_revert, is_self_modification
 
 log = get_logger("clr")
 
@@ -78,8 +78,8 @@ async def _execute_node(state: OrchestratorState) -> dict:
     from chimera.cli.prompts import build_prompt
     from chimera.cli.runners import run_claude
 
-    action = state.get("clr_action", "idle")
-    task = state.get("clr_task", "")
+    action = state.get("refiner_action", "idle")
+    task = state.get("refiner_task", "")
     history = list(state.get("history", []))
     cycle = state.get("cycle_count", 0)
 
@@ -137,7 +137,7 @@ async def _validate_node(state: OrchestratorState) -> dict:
         "health_score": new_score,
         "health_report": report.to_dict(),
         "consecutive_no_improvement": consecutive,
-        "clr_action": decision,
+        "refiner_action": decision,
         "history": history + [
             f"validate(cycle {cycle}): {baseline:.2f} → {new_score:.2f} ({delta:+.2f}) → {decision}"
         ],
@@ -148,8 +148,8 @@ async def _commit_or_rollback_node(state: OrchestratorState) -> dict:
     """Commit or revert based on validation result, log to CLR memory."""
     history = list(state.get("history", []))
     cycle = state.get("cycle_count", 0)
-    action = state.get("clr_action", "commit")
-    task = state.get("clr_task", "")
+    action = state.get("refiner_action", "commit")
+    task = state.get("refiner_task", "")
     baseline = state.get("health_baseline", 0.0)
     score = state.get("health_score", 0.0)
 
@@ -176,7 +176,7 @@ async def _commit_or_rollback_node(state: OrchestratorState) -> dict:
     # Log to CLR memory
     await log_cycle(
         cycle=cycle,
-        action=state.get("clr_action", "unknown"),
+        action=state.get("refiner_action", "unknown"),
         description=task,
         health_before=baseline,
         health_after=score,
@@ -193,7 +193,7 @@ async def _commit_or_rollback_node(state: OrchestratorState) -> dict:
 
 def _after_triage(state: OrchestratorState) -> str:
     """Route based on triage decision."""
-    action = state.get("clr_action", "idle")
+    action = state.get("refiner_action", "idle")
     if action == "idle":
         return END
     return "set_baseline"
@@ -203,12 +203,12 @@ def _after_commit(state: OrchestratorState) -> str:
     """Check if we should continue looping or exit."""
     if state.get("requires_restart"):
         return END  # Outer daemon will restart
-    if state.get("clr_action") == "idle":
+    if state.get("refiner_action") == "idle":
         return END
     return "assess"  # Loop back
 
 
-async def build_clr_graph(config: OrchestratorConfig):
+async def build_refiner_graph(config: OrchestratorConfig):
     """Build and compile the CLR refinement loop graph.
 
     Args:

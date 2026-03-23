@@ -2,7 +2,7 @@
 
 The proactive tool-builder. Observes behavior, identifies friction, builds infrastructure.
 
-**Paths:** New nodes in `src/genesis/nodes/azerate/`. Graph in `src/genesis/graphs/azerate.py`. Memory table in Da'at. Daemon script in `scripts/azerate.sh`.
+**Paths:** New nodes in `src/chimera/nodes/azerate/`. Graph in `src/chimera/graphs/azerate.py`. Memory table in Da'at. Daemon script in `scripts/azerate.sh`.
 
 **Dependencies:** Can run independently of Genesis patterns. Integrates with Ein Sof (dispatch after Genesis cycles), Da'at (rejection memory), and Otiyot (uses primitives if available). Respects DIRECTIVES.md.
 
@@ -30,7 +30,7 @@ flowchart TB
 
 **Approach:**
 
-- `src/genesis/nodes/azerate/watcher.py`
+- `src/chimera/nodes/azerate/watcher.py`
 - Purely deterministic — no LLM calls. Reads files and parses patterns.
 - Shell history analysis:
   ```python
@@ -57,8 +57,8 @@ flowchart TB
 
 **Files to add:**
 
-- `src/genesis/nodes/azerate/__init__.py`
-- `src/genesis/nodes/azerate/watcher.py`
+- `src/chimera/nodes/azerate/__init__.py`
+- `src/chimera/nodes/azerate/watcher.py`
 
 ---
 
@@ -68,7 +68,7 @@ flowchart TB
 
 **Approach:**
 
-- `src/genesis/nodes/azerate/friction.py`
+- `src/chimera/nodes/azerate/friction.py`
 - Groups signals by category, ranks by `impact × frequency`
 - Uses Haiku for classification: given a set of signals, what tool category would eliminate the friction?
 - Pydantic structured output:
@@ -83,7 +83,7 @@ flowchart TB
 
 **Files to add:**
 
-- `src/genesis/nodes/azerate/friction.py`
+- `src/chimera/nodes/azerate/friction.py`
 
 ---
 
@@ -93,7 +93,7 @@ flowchart TB
 
 **Approach:**
 
-- `src/genesis/nodes/azerate/proposer.py`
+- `src/chimera/nodes/azerate/proposer.py`
 - Queries Da'at's `azerate_memory` table for previously rejected tools
 - Filters out rejected friction categories
 - Selects top 1 (one tool per cycle — prevents overwhelming)
@@ -111,7 +111,7 @@ flowchart TB
 
 **Files to add:**
 
-- `src/genesis/nodes/azerate/proposer.py`
+- `src/chimera/nodes/azerate/proposer.py`
 
 ---
 
@@ -132,7 +132,7 @@ flowchart TB
 
 **Approach:**
 
-- `src/genesis/nodes/azerate/forge.py`
+- `src/chimera/nodes/azerate/forge.py`
 - Creates a branch: `git checkout -b azerate/<tool-name>`
 - Uses Claude CLI to write the tool based on the ToolSpec
 - Writes only to allowed directories: `scripts/`, `tools/`, `.github/`
@@ -142,7 +142,7 @@ flowchart TB
 **Guardrails enforced in the node:**
 ```python
 ALLOWED_DIRS = {"scripts/", "tools/", ".github/"}
-FORBIDDEN_PATHS = {"DIRECTIVES.md", "SPEC.md", "src/genesis/otiyot/"}
+FORBIDDEN_PATHS = {"DIRECTIVES.md", "SPEC.md", "src/chimera/otiyot/"}
 
 def _validate_paths(files: list[str]) -> bool:
     """Ensure all output files are in allowed directories."""
@@ -155,7 +155,7 @@ def _validate_paths(files: list[str]) -> bool:
 
 **Files to add:**
 
-- `src/genesis/nodes/azerate/forge.py`
+- `src/chimera/nodes/azerate/forge.py`
 
 ---
 
@@ -165,7 +165,7 @@ def _validate_paths(files: list[str]) -> bool:
 
 **Approach:**
 
-- `src/genesis/nodes/azerate/pr_creator.py`
+- `src/chimera/nodes/azerate/pr_creator.py`
 - Uses `gh pr create` if the GitHub CLI is available, otherwise just pushes the branch and logs the description
 - PR body template:
   ```markdown
@@ -190,7 +190,7 @@ def _validate_paths(files: list[str]) -> bool:
 
 **Files to add:**
 
-- `src/genesis/nodes/azerate/pr_creator.py`
+- `src/chimera/nodes/azerate/pr_creator.py`
 
 ---
 
@@ -212,7 +212,7 @@ def _validate_paths(files: list[str]) -> bool:
       rejection_reason TEXT
   );
   ```
-- New module `src/genesis/core/azerate_memory.py`:
+- New module `src/chimera/core/azerate_memory.py`:
   - `record_outcome(tool_name, friction_type, accepted, reason)`
   - `get_rejected_types()` — returns friction categories rejected 2+ times
   - `was_rejected(friction_type)` — quick check
@@ -220,7 +220,7 @@ def _validate_paths(files: list[str]) -> bool:
 
 **Files to add:**
 
-- `src/genesis/core/azerate_memory.py`
+- `src/chimera/core/azerate_memory.py`
 
 ---
 
@@ -241,19 +241,19 @@ flowchart TB
 
 **Approach:**
 
-- `src/genesis/graphs/azerate.py` with `build_azerate_graph()`
+- `src/chimera/graphs/azerate.py` with `build_azerate_graph()`
 - Five nodes: watcher → friction_analyzer → proposer → forge → pr_creator
 - Conditional: if proposer finds nothing (all friction addressed or all rejected) → END
 - Checkpointer: `azerate_checkpoints.db`
-- MCP tool: `chain_azerate()`
-- Cursor keyword: `azerate start` → `chain_azerate()`
+- MCP tool: `chain_toolbuilder()`
+- Cursor keyword: `azerate start` → `chain_toolbuilder()`
 
 **Files to add:**
 
-- `src/genesis/graphs/azerate.py`
-- `src/genesis/nodes/azerate/__init__.py`
-- Update `src/genesis/graphs/__init__.py`
-- Update `src/genesis/server/mcp.py` — add tool
+- `src/chimera/graphs/azerate.py`
+- `src/chimera/nodes/azerate/__init__.py`
+- Update `src/chimera/graphs/__init__.py`
+- Update `src/chimera/server/mcp.py` — add tool
 - Update `.cursor/rules/mcp-routing.mdc` — add keyword
 
 ---

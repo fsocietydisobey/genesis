@@ -30,7 +30,7 @@ async def _run_tests() -> tuple[bool, str]:
         return True, "pytest not found — skipping"
 
 
-def build_pde_aggregator_node():
+def build_swarm_aggregator_node():
     """Build a merge node that combines parallel agent results.
 
     Returns:

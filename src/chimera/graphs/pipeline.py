@@ -21,13 +21,13 @@ from chimera.config import OrchestratorConfig, get_classify_model
 from chimera.core.guards import require_plan_approved
 from chimera.core.memory import get_recent_context, save_run
 from chimera.core.state import OrchestratorState
+from chimera.log import get_logger
 from chimera.subgraphs import (
     build_implementation_subgraph,
     build_planning_subgraph,
     build_research_subgraph,
     build_review_subgraph,
 )
-from chimera.log import get_logger
 
 log = get_logger("spr4")
 
@@ -212,7 +212,7 @@ async def _save_memory_node(state: OrchestratorState) -> dict:
     }
 
 
-async def build_spr4_graph(config: OrchestratorConfig):
+async def build_pipeline_graph(config: OrchestratorConfig):
     """Build and compile the SPR-4 parent graph with phase subgraphs.
 
     Uses the same persistent checkpointer as Option B. The four phase

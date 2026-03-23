@@ -726,9 +726,9 @@ flowchart LR
     style L fill:#48bb78,stroke:#276749,color:#fff
     style M fill:#48bb78,stroke:#276749,color:#fff
     style F fill:#48bb78,stroke:#276749,color:#fff
-    style ACL_D fill:#ffd700,stroke:#b8860b,color:#000
-    style SWP_D fill:#e53e3e,stroke:#9b2c2c,color:#fff
-    style POB_D fill:#9f7aea,stroke:#553c9a,color:#fff
+    style ACL_D fill:#48bb78,stroke:#276749,color:#fff
+    style SWP_D fill:#48bb78,stroke:#276749,color:#fff
+    style POB_D fill:#48bb78,stroke:#276749,color:#fff
 ```
 
 1. **SPR-4** — implemented. The base execution engine.
@@ -737,6 +737,6 @@ flowchart LR
 4. **PDE** — implemented. Independent parallel dispatch.
 5. **HVD** — implemented. The unifying supervisor.
 6. **PDE-F** — implemented. Graduated Fibonacci dispatch mode.
-7. **ACL** — planned. Atomic Component Library — immutable tested primitives.
-8. **SWP** — planned. Shadow Worktree Purifier — dead code removal in isolation.
-9. **POB** — planned. Proactive Observation Builder — unsolicited developer tools.
+7. **ACL** — implemented. Atomic Component Library — immutable tested primitives. MCP: `chain_components`
+8. **SWP/DCE** — implemented. Dead Code Eliminator — dead code removal in shadow worktree. MCP: `chain_deadcode`
+9. **POB** — implemented. Proactive Observation Builder — unsolicited developer tools. MCP: `chain_toolbuilder`
