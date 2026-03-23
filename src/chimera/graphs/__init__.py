@@ -1,4 +1,4 @@
-"""Graph construction — all Genesis execution patterns."""
+"""Graph construction — all CHIMERA execution patterns."""
 
 from chimera.graphs.spr4 import build_spr4_graph
 from chimera.graphs.clr import build_clr_graph

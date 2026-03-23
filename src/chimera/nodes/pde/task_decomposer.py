@@ -12,9 +12,9 @@ from pydantic import BaseModel, Field
 from chimera.log import get_logger
 from chimera.core.state import OrchestratorState
 
-log = get_logger("node.sovereign")
+log = get_logger("node.task_decomposer")
 
-SOVEREIGN_SYSTEM_PROMPT = """\
+DECOMPOSER_SYSTEM_PROMPT = """\
 You are a task decomposer for a parallel execution system. Given a goal,
 break it into independent sub-tasks that can be executed simultaneously.
 
@@ -53,7 +53,7 @@ class SwarmTask(BaseModel):
 
 
 class TaskManifest(BaseModel):
-    """Structured decomposition from the Sovereign."""
+    """Structured decomposition from the task decomposer."""
 
     tasks: list[SwarmTask] = Field(description="Independent tasks (max 15)")
     dispatch_mode: str = Field(description="flat | pdef")
@@ -61,7 +61,7 @@ class TaskManifest(BaseModel):
 
 
 def build_task_decomposer_node(model: BaseChatModel):
-    """Build a Sovereign task decomposition node.
+    """Build a task decomposition node.
 
     Args:
         model: LangChain chat model (Sonnet recommended for quality decomposition).
@@ -86,7 +86,7 @@ def build_task_decomposer_node(model: BaseChatModel):
         prompt_parts.append(f"## Budget\n\nMaximum {max_agents} parallel tasks.")
 
         messages = [
-            SystemMessage(content=SOVEREIGN_SYSTEM_PROMPT),
+            SystemMessage(content=DECOMPOSER_SYSTEM_PROMPT),
             HumanMessage(content="\n\n".join(prompt_parts)),
         ]
 
@@ -125,7 +125,7 @@ def build_task_decomposer_node(model: BaseChatModel):
             "swarm_manifest": manifest_dict,
             "dispatch_mode": manifest.dispatch_mode,
             "history": history + [
-                f"sovereign: decomposed into {len(tasks)} tasks "
+                f"decomposer: decomposed into {len(tasks)} tasks "
                 f"(mode={manifest.dispatch_mode}) — {', '.join(t.id for t in tasks)}"
             ],
         }

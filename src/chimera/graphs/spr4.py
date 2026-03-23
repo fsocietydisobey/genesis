@@ -1,6 +1,6 @@
 """SPR-4 parent graph — phase router with hierarchical subgraphs.
 
-Genesis / SPR-4: Sequential Phase Runner. A separate graph
+CHIMERA / SPR-4: Sequential Phase Runner. A separate graph
 entry point that orchestrates four phase subgraphs (research, planning,
 implementation, review) via structured handoffs.
 

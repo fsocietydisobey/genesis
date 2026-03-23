@@ -1,4 +1,4 @@
-"""Node factories for all Genesis patterns."""
+"""Node factories for all CHIMERA patterns."""
 
 # SPR-4 (Sequential Phase Runner)
 from chimera.nodes.spr4.architect import build_architect_node

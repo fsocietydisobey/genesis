@@ -1,4 +1,4 @@
-"""Genesis — autonomous multi-model orchestration system."""
+"""CHIMERA — autonomous multi-model orchestration system."""
 
 from .server.mcp import main
 

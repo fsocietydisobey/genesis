@@ -1,4 +1,4 @@
-"""Genesis MCP server — autonomous multi-model orchestration.
+"""CHIMERA MCP server — autonomous multi-model orchestration.
 
 Loads .env automatically so API keys don't need to be in MCP config.
 
@@ -113,7 +113,7 @@ async def health() -> str:
 
     return (
         f"**Status:** healthy\n"
-        f"**Server:** Genesis\n"
+        f"**Server:** CHIMERA\n"
         f"**Uptime:** {hours}h {minutes}m {seconds}s\n"
         f"**Jobs running:** {running}\n"
         f"**Jobs paused:** {paused}"
@@ -255,7 +255,7 @@ async def chain(task_description: str, context: str = "", thread_id: str = "") -
 
 @mcp.tool()
 async def chain_spr4(task_description: str, context: str = "", thread_id: str = "") -> str:
-    """Start the SPR-4 pipeline (Genesis) in the background.
+    """Start the SPR-4 pipeline (CHIMERA) in the background.
 
     SPR-4 runs a phased pipeline: research → planning → implementation → review.
     Each phase has a critic that loops until quality passes or max steps reached.
