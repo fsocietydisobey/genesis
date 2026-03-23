@@ -1,9 +1,9 @@
-"""Chesed (Mercy/Expansion) — scope expansion proposer.
+"""ScopeAnalyzer (Mercy/Expansion) — scope expansion proposer.
 
 The creative/generative force. Reads the implementation output and proposes
 improvements beyond the original plan — error handling, tests, related fixes.
 
-Chesed does NOT implement. It proposes. Tiferet decides which proposals to accept.
+ScopeAnalyzer does NOT implement. It proposes. Arbitrator decides which proposals to accept.
 Capped at 3 proposals per cycle to prevent infinite expansion.
 """
 
@@ -14,9 +14,9 @@ from pydantic import BaseModel, Field
 from genesis.log import get_logger
 from genesis.core.state import OrchestratorState
 
-log = get_logger("node.chesed")
+log = get_logger("node.scope_analyzer")
 
-CHESED_SYSTEM_PROMPT = """\
+SCOPE_ANALYZER_SYSTEM_PROMPT = """\
 You are a creative engineering advisor. Your job is to spot opportunities for
 improvement that the original plan missed.
 
@@ -46,7 +46,7 @@ class Proposal(BaseModel):
     estimated_effort: str = Field(description="trivial | small | moderate")
 
 
-class ChesedProposal(BaseModel):
+class ScopeAnalyzerProposal(BaseModel):
     """Structured proposals from the scope expansion analyzer."""
 
     proposals: list[Proposal] = Field(
@@ -55,7 +55,7 @@ class ChesedProposal(BaseModel):
     )
 
 
-def build_chesed_node(model: BaseChatModel):
+def build_scope_analyzer_node(model: BaseChatModel):
     """Build a scope expansion proposer node.
 
     Args:
@@ -64,9 +64,9 @@ def build_chesed_node(model: BaseChatModel):
     Returns:
         Async node function compatible with LangGraph StateGraph.
     """
-    structured_model = model.with_structured_output(ChesedProposal)
+    structured_model = model.with_structured_output(ScopeAnalyzerProposal)
 
-    async def chesed_node(state: OrchestratorState) -> dict:
+    async def scope_analyzer_node(state: OrchestratorState) -> dict:
         """Propose improvements beyond the plan."""
         task = state.get("task", "")
         history = list(state.get("history", []))
@@ -77,8 +77,8 @@ def build_chesed_node(model: BaseChatModel):
         if not impl and not plan:
             log.info("nothing to analyze, skipping")
             return {
-                "chesed_proposals": [],
-                "history": history + ["chesed: nothing to analyze, skipping"],
+                "scope_proposals": [],
+                "history": history + ["scope_analyzer: nothing to analyze, skipping"],
             }
 
         prompt_parts = [f"## Original task\n\n{task}"]
@@ -88,12 +88,12 @@ def build_chesed_node(model: BaseChatModel):
             prompt_parts.append(f"## Implementation output\n\n{impl}")
 
         messages = [
-            SystemMessage(content=CHESED_SYSTEM_PROMPT),
+            SystemMessage(content=SCOPE_ANALYZER_SYSTEM_PROMPT),
             HumanMessage(content="\n\n".join(prompt_parts)),
         ]
 
         result_raw = await structured_model.ainvoke(messages)
-        assert isinstance(result_raw, ChesedProposal)
+        assert isinstance(result_raw, ScopeAnalyzerProposal)
         result = result_raw
 
         # Enforce max 3 proposals
@@ -105,13 +105,13 @@ def build_chesed_node(model: BaseChatModel):
 
         if proposals:
             summaries = "; ".join(p.description[:60] for p in proposals)
-            history_entry = f"chesed: proposed {len(proposals)} improvements — {summaries}"
+            history_entry = f"scope_analyzer: proposed {len(proposals)} improvements — {summaries}"
         else:
-            history_entry = "chesed: implementation is solid, no proposals"
+            history_entry = "scope_analyzer: implementation is solid, no proposals"
 
         return {
-            "chesed_proposals": proposals_dict,
+            "scope_proposals": proposals_dict,
             "history": history + [history_entry],
         }
 
-    return chesed_node
+    return scope_analyzer_node

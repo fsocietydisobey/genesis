@@ -1,7 +1,7 @@
-"""Ein Sof dispatcher — selects which pattern to spawn.
+"""HVD dispatcher — selects which pattern to spawn.
 
 Reads the health report and spec progress, decides whether to spawn
-Chayah (evolution), Nefesh (parallel swarm), or Nitzotz (single task).
+CLR (evolution), PDE (parallel swarm), or SPR-4 (single task).
 """
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from genesis.log import get_logger
 from genesis.core.state import OrchestratorState
 
-log = get_logger("node.ein_sof_dispatch")
+log = get_logger("node.hvd_dispatcher")
 
 DISPATCH_SYSTEM_PROMPT = """\
 You are the dispatch controller for an autonomous engineering system.
@@ -26,31 +26,31 @@ Given the repository health state, decide which execution pattern to spawn.
   Decomposes into N parallel agents.
 - **nitzotz**: Single-task pipeline. Best for a specific complex feature or focused fix.
   Runs research → plan → implement → review.
-- **cryosleep**: Nothing to do. Health is good, spec is complete, or budget is exhausted.
+- **idle**: Nothing to do. Health is good, spec is complete, or budget is exhausted.
 
 ## Decision rules
 
 1. If health has critical failures (tests failing) → nitzotz (focused fix)
 2. If > 5 independent issues across disjoint files → nefesh (batch parallel)
 3. If health declining + spec items remaining → chayah (steady evolution)
-4. If all healthy + spec complete → cryosleep
-5. If budget exhausted → cryosleep (regardless of state)
+4. If all healthy + spec complete → idle
+5. If budget exhausted → idle (regardless of state)
 """
 
 
 class DispatchDecision(BaseModel):
     """Structured dispatch decision."""
 
-    pattern: str = Field(description="chayah | nefesh | nitzotz | cryosleep")
+    pattern: str = Field(description="chayah | nefesh | nitzotz | idle")
     reasoning: str = Field(description="Why this pattern was chosen")
     task_description: str = Field(
         default="",
-        description="Task for nitzotz, or goal for nefesh. Empty for chayah/cryosleep.",
+        description="Task for nitzotz, or goal for nefesh. Empty for chayah/idle.",
     )
 
 
-def build_ein_sof_dispatch_node(model: BaseChatModel):
-    """Build Ein Sof's pattern dispatch node.
+def build_hvd_dispatcher_node(model: BaseChatModel):
+    """Build HVD's pattern dispatch node.
 
     Args:
         model: LangChain chat model (Haiku — fast decision).
@@ -60,7 +60,7 @@ def build_ein_sof_dispatch_node(model: BaseChatModel):
     """
     structured_model = model.with_structured_output(DispatchDecision)
 
-    async def dispatch_node(state: OrchestratorState) -> dict:
+    async def hvd_dispatch_node(state: OrchestratorState) -> dict:
         """Decide which pattern to spawn."""
         history = list(state.get("history", []))
         health = state.get("health_report") or {}
@@ -72,24 +72,24 @@ def build_ein_sof_dispatch_node(model: BaseChatModel):
             log.info("human task provided — dispatching nitzotz")
             return {
                 "dispatch_decision": {
-                    "pattern": "nitzotz",
+                    "pattern": "spr4",
                     "reasoning": "Human provided a specific task",
                     "task_description": task,
                 },
-                "history": history + [f"ein_sof: dispatching nitzotz — human task: {task[:60]}"],
+                "history": history + [f"hvd: dispatching nitzotz — human task: {task[:60]}"],
             }
 
         # Check budget
         remaining = budget.get("budget_remaining", 10.0)
         if remaining <= 0:
-            log.info("budget exhausted — cryosleep")
+            log.info("budget exhausted — idle")
             return {
                 "dispatch_decision": {
-                    "pattern": "cryosleep",
+                    "pattern": "idle",
                     "reasoning": "Budget exhausted",
                     "task_description": "",
                 },
-                "history": history + ["ein_sof: cryosleep — budget exhausted"],
+                "history": history + ["hvd: idle — budget exhausted"],
             }
 
         prompt = (
@@ -120,8 +120,8 @@ def build_ein_sof_dispatch_node(model: BaseChatModel):
                 "task_description": decision.task_description,
             },
             "history": history + [
-                f"ein_sof: dispatching {decision.pattern} — {decision.reasoning}"
+                f"hvd: dispatching {decision.pattern} — {decision.reasoning}"
             ],
         }
 
-    return dispatch_node
+    return hvd_dispatch_node

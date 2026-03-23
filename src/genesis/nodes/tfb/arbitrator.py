@@ -1,10 +1,10 @@
-"""Tiferet (Beauty/Harmony) — cross-model arbitration and synthesis.
+"""Arbitrator (Beauty/Harmony) — cross-model arbitration and synthesis.
 
-The balancing force. Receives Gevurah's verdict (restrictive) and Chesed's
+The balancing force. Receives Stress Tester's verdict (restrictive) and ScopeAnalyzer's
 proposals (generative), and arbitrates between them. Uses a DIFFERENT model
 from the builder — no model judges its own output.
 
-Produces a decision: which Gevurah issues to address, which Chesed proposals
+Produces a decision: which Stress Tester issues to address, which ScopeAnalyzer proposals
 to accept, and an overall rationale. The decision feeds back into the
 implementation loop.
 """
@@ -16,21 +16,21 @@ from pydantic import BaseModel, Field
 from genesis.log import get_logger
 from genesis.core.state import OrchestratorState
 
-log = get_logger("node.tiferet")
+log = get_logger("node.arbitrator")
 
-TIFERET_SYSTEM_PROMPT = """\
+ARBITRATOR_SYSTEM_PROMPT = """\
 You are a senior engineering arbitrator. You receive two competing perspectives
 on a piece of work:
 
-1. **Gevurah (the critic)** — found issues and wants changes
-2. **Chesed (the advisor)** — proposes improvements and wants additions
+1. **Stress Tester (the critic)** — found issues and wants changes
+2. **ScopeAnalyzer (the advisor)** — proposes improvements and wants additions
 
 Your job is to make the FINAL CALL on each item. You are the tiebreaker.
 
 Decision rules:
-- **Gevurah blocker** → ALWAYS accept. Blockers must be fixed.
-- **Gevurah warning** → Accept if the issue is real and specific. Reject vague complaints.
-- **Chesed proposal** → Accept if it's within scope, clearly valuable, and low effort.
+- **Stress Tester blocker** → ALWAYS accept. Blockers must be fixed.
+- **Stress Tester warning** → Accept if the issue is real and specific. Reject vague complaints.
+- **ScopeAnalyzer proposal** → Accept if it's within scope, clearly valuable, and low effort.
   Reject scope creep, speculative improvements, and anything that's "nice to have" vs necessary.
 - **Conflicting opinions** → Weigh specificity. Whoever cites specific files, functions,
   and concrete consequences wins. Vague arguments lose.
@@ -39,16 +39,16 @@ Be decisive. Don't hedge. For each item, say "accept" or "reject" with a one-lin
 
 Finally, decide: does the implementation need rework (needs_rework: true) or is it
 ready to proceed (needs_rework: false)? Only set needs_rework if there are accepted
-Gevurah blockers that haven't been fixed yet.
+Stress Tester blockers that haven't been fixed yet.
 """
 
 
-class TiferetDecision(BaseModel):
+class ArbitrationDecision(BaseModel):
     """Structured decision from the arbitrator."""
 
     accepted_changes: list[str] = Field(
         default_factory=list,
-        description="Descriptions of accepted Gevurah issues and Chesed proposals",
+        description="Descriptions of accepted Stress Tester issues and ScopeAnalyzer proposals",
     )
     rejected_changes: list[str] = Field(
         default_factory=list,
@@ -61,7 +61,7 @@ class TiferetDecision(BaseModel):
     )
 
 
-def build_tiferet_node(model: BaseChatModel):
+def build_arbitrator_node(model: BaseChatModel):
     """Build a cross-model arbitration node.
 
     IMPORTANT: This should use a DIFFERENT model from the one that produced
@@ -74,47 +74,47 @@ def build_tiferet_node(model: BaseChatModel):
     Returns:
         Async node function compatible with LangGraph StateGraph.
     """
-    structured_model = model.with_structured_output(TiferetDecision)
+    structured_model = model.with_structured_output(ArbitrationDecision)
 
-    async def tiferet_node(state: OrchestratorState) -> dict:
-        """Arbitrate between Gevurah's restrictions and Chesed's expansions."""
+    async def arbitrator_node(state: OrchestratorState) -> dict:
+        """Arbitrate between Stress Tester's restrictions and ScopeAnalyzer's expansions."""
         task = state.get("task", "")
         history = list(state.get("history", []))
 
-        gevurah_verdict = state.get("gevurah_verdict") or {}
-        chesed_proposals = state.get("chesed_proposals") or []
+        stress_test_verdict = state.get("stress_test_verdict") or {}
+        scope_proposals = state.get("scope_proposals") or []
 
         # Build the arbitration context
         prompt_parts = [f"## Original task\n\n{task}"]
 
-        # Format Gevurah's issues
-        issues = gevurah_verdict.get("issues", [])
+        # Format Stress Tester's issues
+        issues = stress_test_verdict.get("issues", [])
         if issues:
-            gevurah_section = "## Gevurah's verdict\n\n"
+            stress_test_section = "## Stress Tester's verdict\n\n"
             for i, issue in enumerate(issues, 1):
-                gevurah_section += (
+                stress_test_section += (
                     f"{i}. **[{issue.get('severity', '?')}]** ({issue.get('category', '?')}) "
                     f"{issue.get('description', '')}"
                 )
                 if issue.get("file"):
-                    gevurah_section += f" — `{issue['file']}`"
-                gevurah_section += "\n"
-            prompt_parts.append(gevurah_section)
+                    stress_test_section += f" — `{issue['file']}`"
+                stress_test_section += "\n"
+            prompt_parts.append(stress_test_section)
         else:
-            prompt_parts.append("## Gevurah's verdict\n\nNo issues found.")
+            prompt_parts.append("## Stress Tester's verdict\n\nNo issues found.")
 
-        # Format Chesed's proposals
-        if chesed_proposals:
-            chesed_section = "## Chesed's proposals\n\n"
-            for i, prop in enumerate(chesed_proposals, 1):
-                chesed_section += (
+        # Format ScopeAnalyzer's proposals
+        if scope_proposals:
+            scope_section = "## ScopeAnalyzer's proposals\n\n"
+            for i, prop in enumerate(scope_proposals, 1):
+                scope_section += (
                     f"{i}. **{prop.get('description', '')}** "
                     f"(effort: {prop.get('estimated_effort', '?')}) — "
                     f"{prop.get('rationale', '')}\n"
                 )
-            prompt_parts.append(chesed_section)
+            prompt_parts.append(scope_section)
         else:
-            prompt_parts.append("## Chesed's proposals\n\nNo proposals.")
+            prompt_parts.append("## ScopeAnalyzer's proposals\n\nNo proposals.")
 
         # Include implementation context
         impl = state.get("implementation_result", "")
@@ -122,12 +122,12 @@ def build_tiferet_node(model: BaseChatModel):
             prompt_parts.append(f"## Implementation output (for reference)\n\n{impl[:2000]}")
 
         messages = [
-            SystemMessage(content=TIFERET_SYSTEM_PROMPT),
+            SystemMessage(content=ARBITRATOR_SYSTEM_PROMPT),
             HumanMessage(content="\n\n".join(prompt_parts)),
         ]
 
         decision_raw = await structured_model.ainvoke(messages)
-        assert isinstance(decision_raw, TiferetDecision)
+        assert isinstance(decision_raw, ArbitrationDecision)
         decision = decision_raw
 
         log.info(
@@ -151,13 +151,13 @@ def build_tiferet_node(model: BaseChatModel):
                                   "\n".join(f"- {c}" for c in decision.accepted_changes))
 
         history_entry = (
-            f"tiferet: {len(decision.accepted_changes)} accepted, "
+            f"arbitrator: {len(decision.accepted_changes)} accepted, "
             f"{len(decision.rejected_changes)} rejected, "
             f"needs_rework={decision.needs_rework}"
         )
 
         result: dict = {
-            "tiferet_decision": decision_dict,
+            "arbitration_decision": decision_dict,
             "history": history + [history_entry],
         }
 
@@ -165,16 +165,16 @@ def build_tiferet_node(model: BaseChatModel):
         # so the implementation node sees them on retry
         if decision.needs_rework and feedback_parts:
             existing_feedback = state.get("validation_feedback", "")
-            tiferet_feedback = "\n\n".join(feedback_parts)
+            arbitration_feedback = "\n\n".join(feedback_parts)
             result["validation_feedback"] = (
-                f"{existing_feedback}\n\n## Tiferet arbitration\n\n{tiferet_feedback}"
-                if existing_feedback else tiferet_feedback
+                f"{existing_feedback}\n\n## Arbitrator decision\n\n{arbitration_feedback}"
+                if existing_feedback else arbitration_feedback
             )
             result["handoff_type"] = "tests_failing"  # Force rework
         elif state.get("handoff_type") != "tests_failing":
-            # Don't override a Gevurah blocker handoff
+            # Don't override a Stress Tester blocker handoff
             result["handoff_type"] = "ready_for_review"
 
         return result
 
-    return tiferet_node
+    return arbitrator_node

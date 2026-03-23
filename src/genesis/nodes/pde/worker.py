@@ -1,4 +1,4 @@
-"""Swarm agent — parallel worker for Nefesh.
+"""Swarm agent — parallel worker for PDE.
 
 Thin wrapper around Claude CLI that executes a single task with scoped
 file access. Each agent owns a set of files and should only modify those.
@@ -23,14 +23,14 @@ You are a focused implementation agent. Execute ONLY the task described below.
 """
 
 
-def build_swarm_agent_node():
+def build_pde_worker_node():
     """Build a swarm agent node for parallel execution.
 
     Returns:
         Async node function compatible with LangGraph StateGraph.
     """
 
-    async def swarm_agent_node(state: OrchestratorState) -> dict:
+    async def pde_worker_node(state: OrchestratorState) -> dict:
         """Execute a single scoped task."""
         # Read task details from the Send() payload
         task_id = state.get("task", "unknown")  # Overloaded in Send payload
@@ -72,4 +72,4 @@ def build_swarm_agent_node():
                 "history": history + [f"swarm_agent: failed {task_id} — {e}"],
             }
 
-    return swarm_agent_node
+    return pde_worker_node

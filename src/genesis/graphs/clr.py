@@ -1,7 +1,7 @@
-"""Chayah graph — continuous evolution loop.
+"""CLR graph — continuous evolution loop.
 
 The Living Soul. A self-sustaining loop:
-    assess → triage → execute (via Nitzotz) → validate → commit/rollback → assess
+    assess → triage → execute (via SPR-4) → validate → commit/rollback → assess
 
 Runs until convergence (5 cycles with no improvement), budget exhaustion,
 or idle (spec complete + healthy).
@@ -15,12 +15,12 @@ from genesis.config import OrchestratorConfig, get_classify_model
 from genesis.core.evolution_memory import get_last_cycle_number, get_recent_cycles, log_cycle
 from genesis.core.fitness import assess_health
 from genesis.core.state import OrchestratorState
-from genesis.nodes.evolution.assess import build_assess_node
-from genesis.nodes.evolution.triage import build_triage_node
+from genesis.nodes.clr.health_scanner import build_health_scanner_node
+from genesis.nodes.clr.classifier import build_classifier_node
 from genesis.tools.git_tools import git_checkpoint, git_diff_files, git_revert, is_self_modification
 from genesis.log import get_logger
 
-log = get_logger("chayah")
+log = get_logger("clr")
 
 
 async def _init_node(state: OrchestratorState) -> dict:
@@ -32,7 +32,7 @@ async def _init_node(state: OrchestratorState) -> dict:
     last_cycle = await get_last_cycle_number()
     if last_cycle > 0:
         log.info("resuming from cycle %d", last_cycle)
-        history.append(f"chayah: resuming from cycle {last_cycle}")
+        history.append(f"clr: resuming from cycle {last_cycle}")
 
     # Load recent evolution context
     recent = await get_recent_cycles(limit=5)
@@ -51,7 +51,7 @@ async def _init_node(state: OrchestratorState) -> dict:
         "health_baseline": 0.0,
         "requires_restart": False,
         "memory_context": memory,
-        "history": history + ["chayah: initialized"],
+        "history": history + ["clr: initialized"],
     }
 
 
@@ -70,9 +70,9 @@ async def _set_baseline_node(state: OrchestratorState) -> dict:
 
 
 async def _execute_node(state: OrchestratorState) -> dict:
-    """Execute the triage decision by invoking Nitzotz with the generated task.
+    """Execute the triage decision by invoking SPR-4 with the generated task.
 
-    Note: In a full implementation, this would embed the Nitzotz graph as a subgraph.
+    Note: In a full implementation, this would embed the SPR-4 graph as a subgraph.
     For now, it delegates to the existing CLI runners directly for simplicity.
     """
     from genesis.cli.prompts import build_prompt
@@ -208,8 +208,8 @@ def _after_commit(state: OrchestratorState) -> str:
     return "assess"  # Loop back
 
 
-async def build_chayah_graph(config: OrchestratorConfig):
-    """Build and compile the Chayah evolution loop graph.
+async def build_clr_graph(config: OrchestratorConfig):
+    """Build and compile the CLR evolution loop graph.
 
     Args:
         config: OrchestratorConfig with provider/role definitions.
@@ -227,23 +227,23 @@ async def build_chayah_graph(config: OrchestratorConfig):
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
     ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
-    db_path = str(data_dir / "chayah_checkpoints.db")
+    db_path = str(data_dir / "clr_checkpoints.db")
 
     conn = await aiosqlite.connect(db_path)
     await conn.execute("PRAGMA journal_mode=WAL")
     checkpointer = AsyncSqliteSaver(conn)
     await checkpointer.setup()
-    log.info("Chayah checkpointer ready: %s", db_path)
+    log.info("CLR checkpointer ready: %s", db_path)
 
     model = get_classify_model(config)
-    assess_node = build_assess_node()
-    triage_node = build_triage_node(model)
+    health_scanner_node = build_health_scanner_node()
+    classifier_node = build_classifier_node(model)
 
     graph = StateGraph(OrchestratorState)
 
     graph.add_node("init", _init_node)
-    graph.add_node("assess", assess_node)
-    graph.add_node("triage", triage_node)
+    graph.add_node("assess", health_scanner_node)
+    graph.add_node("triage", classifier_node)
     graph.add_node("set_baseline", _set_baseline_node)
     graph.add_node("execute", _execute_node)
     graph.add_node("validate", _validate_node)

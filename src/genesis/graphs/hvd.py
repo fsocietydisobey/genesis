@@ -1,12 +1,12 @@
-"""Ein Sof graph — the meta-orchestrator.
+"""HVD graph — the meta-orchestrator.
 
-The Infinite. Monitors the repository, performs Tzimtzum (contraction —
-budget, directives), and spawns the right pattern: Chayah (evolution),
-Nefesh (parallel swarm), or Nitzotz (single task).
+The Infinite. Monitors the repository, performs Contraction (
+budget, directives), and spawns the right pattern: CLR (evolution),
+PDE (parallel swarm), or SPR-4 (single task).
 
 Flow:
     assess → dispatch → execute_pattern → directive_check → absorb → assess (loop)
-    or: assess → dispatch → cryosleep → END
+    or: assess → dispatch → idle → END
 """
 
 from __future__ import annotations
@@ -20,16 +20,16 @@ from genesis.core.directives import check_directives
 from genesis.core.fitness import assess_health
 from genesis.core.resource_control import GlobalBudget
 from genesis.core.state import OrchestratorState
-from genesis.nodes.evolution.assess import build_assess_node
-from genesis.nodes.ein_sof_dispatch import build_ein_sof_dispatch_node
+from genesis.nodes.clr.health_scanner import build_health_scanner_node
+from genesis.nodes.hvd_dispatcher import build_hvd_dispatcher_node
 from genesis.tools.git_tools import git_checkpoint, git_revert
 from genesis.log import get_logger
 
-log = get_logger("ein_sof")
+log = get_logger("hvd")
 
 
 async def _init_node(state: OrchestratorState) -> dict:
-    """Initialize Ein Sof — set up budget and directives."""
+    """Initialize HVD — set up budget and directives."""
     history = list(state.get("history", []))
     budget = GlobalBudget(
         max_daily_cost_usd=state.get("global_budget", {}).get("max_daily_cost_usd", 10.0),
@@ -37,16 +37,16 @@ async def _init_node(state: OrchestratorState) -> dict:
 
     return {
         "global_budget": budget.to_dict(),
-        "ein_sof_cycle": 0,
+        "hvd_cycle": 0,
         "active_entities": [],
-        "history": history + ["ein_sof: initialized — Tzimtzum (contraction) applied"],
+        "history": history + ["hvd: initialized — contraction (contraction) applied"],
     }
 
 
 async def _execute_pattern_node(state: OrchestratorState) -> dict:
     """Execute the dispatched pattern.
 
-    This node invokes the chosen graph (Chayah, Nefesh, or Nitzotz) directly.
+    This node invokes the chosen graph (CLR, PDE, or SPR-4) directly.
     In a full implementation, this would spawn background jobs. For now, it
     does a direct invocation for simplicity.
     """
@@ -55,23 +55,23 @@ async def _execute_pattern_node(state: OrchestratorState) -> dict:
 
     history = list(state.get("history", []))
     decision = state.get("dispatch_decision") or {}
-    pattern = decision.get("pattern", "cryosleep")
+    pattern = decision.get("pattern", "idle")
     task_desc = decision.get("task_description", "")
-    cycle = state.get("ein_sof_cycle", 0) + 1
+    cycle = state.get("hvd_cycle", 0) + 1
 
-    if pattern == "cryosleep":
+    if pattern == "idle":
         return {
-            "ein_sof_cycle": cycle,
-            "history": history + [f"ein_sof(cycle {cycle}): cryosleep — nothing to do"],
+            "hvd_cycle": cycle,
+            "history": history + [f"hvd(cycle {cycle}): idle — nothing to do"],
         }
 
     # Git checkpoint before making changes
-    await git_checkpoint(f"ein_sof baseline cycle {cycle}")
+    await git_checkpoint(f"hvd baseline cycle {cycle}")
 
     log.info("cycle %d: executing %s — %s", cycle, pattern, task_desc[:60])
 
     # For now, execute via Claude CLI directly
-    # Future: spawn the actual Chayah/Nefesh/Nitzotz graph as a background job
+    # Future: spawn the actual CLR/PDE/SPR-4 graph as a background job
     prompt = build_prompt(
         "You are a senior software engineer. Execute this task precisely.",
         f"## Task\n\n{task_desc}" if task_desc else "## Task\n\nImprove the codebase based on current health assessment.",
@@ -82,21 +82,21 @@ async def _execute_pattern_node(state: OrchestratorState) -> dict:
         result = await run_claude(prompt, timeout=600, permission_mode="acceptEdits")
         return {
             "implementation_result": result,
-            "ein_sof_cycle": cycle,
-            "history": history + [f"ein_sof(cycle {cycle}): {pattern} completed"],
+            "hvd_cycle": cycle,
+            "history": history + [f"hvd(cycle {cycle}): {pattern} completed"],
         }
     except Exception as e:
         log.error("cycle %d: %s execution failed — %s", cycle, pattern, e)
         return {
-            "ein_sof_cycle": cycle,
-            "history": history + [f"ein_sof(cycle {cycle}): {pattern} failed — {e}"],
+            "hvd_cycle": cycle,
+            "history": history + [f"hvd(cycle {cycle}): {pattern} failed — {e}"],
         }
 
 
 async def _directive_check_node(state: OrchestratorState) -> dict:
     """Check the changes against DIRECTIVES.md (Special Order 937)."""
     history = list(state.get("history", []))
-    cycle = state.get("ein_sof_cycle", 0)
+    cycle = state.get("hvd_cycle", 0)
 
     # Get the diff
     proc = await asyncio.create_subprocess_exec(
@@ -146,16 +146,16 @@ async def _directive_check_node(state: OrchestratorState) -> dict:
 def _after_dispatch(state: OrchestratorState) -> str:
     """Route based on dispatch decision."""
     decision = state.get("dispatch_decision") or {}
-    pattern = decision.get("pattern", "cryosleep")
-    if pattern == "cryosleep":
+    pattern = decision.get("pattern", "idle")
+    if pattern == "idle":
         return END
     return "execute_pattern"
 
 
 def _after_directive(state: OrchestratorState) -> str:
     """Continue looping or exit."""
-    cycle = state.get("ein_sof_cycle", 0)
-    max_cycles = 20  # Ein Sof's own cycle limit
+    cycle = state.get("hvd_cycle", 0)
+    max_cycles = 20  # HVD's own cycle limit
 
     if cycle >= max_cycles:
         return END
@@ -167,8 +167,8 @@ def _after_directive(state: OrchestratorState) -> str:
     return "assess"  # Loop back
 
 
-async def build_ein_sof_graph(config: OrchestratorConfig):
-    """Build and compile the Ein Sof meta-orchestrator graph.
+async def build_hvd_graph(config: OrchestratorConfig):
+    """Build and compile the HVD meta-orchestrator graph.
 
     Args:
         config: OrchestratorConfig with provider/role definitions.
@@ -186,23 +186,23 @@ async def build_ein_sof_graph(config: OrchestratorConfig):
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
     ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
-    db_path = str(data_dir / "ein_sof_checkpoints.db")
+    db_path = str(data_dir / "hvd_checkpoints.db")
 
     conn = await aiosqlite.connect(db_path)
     await conn.execute("PRAGMA journal_mode=WAL")
     checkpointer = AsyncSqliteSaver(conn)
     await checkpointer.setup()
-    log.info("Ein Sof checkpointer ready: %s", db_path)
+    log.info("HVD checkpointer ready: %s", db_path)
 
     model = get_classify_model(config)
-    assess_node = build_assess_node()
-    dispatch_node = build_ein_sof_dispatch_node(model)
+    health_scanner_node = build_health_scanner_node()
+    hvd_dispatch_node = build_hvd_dispatcher_node(model)
 
     graph = StateGraph(OrchestratorState)
 
     graph.add_node("init", _init_node)
-    graph.add_node("assess", assess_node)
-    graph.add_node("dispatch", dispatch_node)
+    graph.add_node("assess", health_scanner_node)
+    graph.add_node("dispatch", hvd_dispatch_node)
     graph.add_node("execute_pattern", _execute_pattern_node)
     graph.add_node("directive_check", _directive_check_node)
 

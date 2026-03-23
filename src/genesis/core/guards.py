@@ -1,4 +1,4 @@
-"""Invariant guards for Nitzotz phase routing and tool execution.
+"""Invariant guards for SPR-4 phase routing and tool execution.
 
 These guards enforce safety constraints:
 - No implementation without an approved plan

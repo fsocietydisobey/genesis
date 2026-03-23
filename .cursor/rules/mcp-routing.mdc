@@ -12,16 +12,16 @@ You have access to MCP tools from the `genesis` server. Use them when the situat
 When the user starts a message with these keywords, ALWAYS use the corresponding MCP tool:
 
 ### Genesis pipeline tools
-- **"nitzotz ..."** or **"aril ..."** → `chain_nitzotz(task_description)` — Nitzotz pipeline with Sefirot balanced forces. Everything after the keyword is the task.
-- **"graph ..."** → `chain(task_description)` — Supervisor pipeline. Everything after "graph" is the task.
-- **"chayah start"** or **"ouroboros start"** → `chain_chayah()` — Chayah continuous evolution loop.
-- **"nefesh ..."** or **"swarm ..."** → `swarm(goal)` — Nefesh parallel dispatch. Everything after the keyword is the goal.
-- **"ein sof start"** → `chain_ein_sof()` — Ein Sof meta-orchestrator.
-- **"status"** → `status()` — show all jobs. If a job ID follows, use `status(job_id="...")`.
-- **"approve"** → `approve(job_id="...")` — approve the most recent paused job.
-- **"reject ..."** → `approve(job_id="...", feedback="...")` — reject with the text after "reject" as feedback.
-- **"history"** → `history(thread_id="...")` — show checkpoint history for the most recent thread.
-- **"rewind ..."** → `rewind(thread_id="...", checkpoint_id="...")` — rewind to a checkpoint.
+- **"spr4 ..."** or **"pipeline ..."** → `chain_spr4(task_description)` — SPR-4 pipeline with TFB balanced forces
+- **"graph ..."** → `chain(task_description)` — Supervisor pipeline
+- **"clr start"** or **"evolve start"** → `chain_clr()` — CLR continuous evolution loop
+- **"pde ..."** or **"swarm ..."** → `swarm(goal)` — PDE parallel dispatch
+- **"hvd start"** or **"supervisor start"** → `chain_hvd()` — HVD meta-orchestrator
+- **"status"** → `status()` — show all jobs
+- **"approve"** → `approve(job_id="...")` — approve the most recent paused job
+- **"reject ..."** → `approve(job_id="...", feedback="...")` — reject with feedback
+- **"history"** → `history(thread_id="...")` — show checkpoint history
+- **"rewind ..."** → `rewind(thread_id="...", checkpoint_id="...")` — rewind to checkpoint
 
 ### Direct tools
 - **"research ..."** or **"deep dive ..."** → `research(question)` — Gemini CLI exploration
@@ -29,7 +29,7 @@ When the user starts a message with these keywords, ALWAYS use the corresponding
 - **"classify ..."** → `classify(task_description)` — fast tier classification
 
 ### System name
-The full system is called **Genesis**. It encompasses all patterns: Nitzotz, Sefirot, Chayah, Nefesh, Klipah, and Ein Sof. Reference docs: `docs/genesis-commands.md` and `docs/usage-guide.md`.
+The full system is called **Genesis** (technical designation: CHIMERA). Reference docs: `docs/genesis-commands.md` and `docs/usage-guide.md`.
 
 ## When to use MCP tools vs handle directly
 
@@ -42,12 +42,10 @@ The full system is called **Genesis**. It encompasses all patterns: Nitzotz, Sef
 - The task genuinely needs deep research into unfamiliar domains
 - The implementation spans 3+ files and needs architectural planning
 - The user explicitly uses a keyword trigger
-- The task is complex enough to benefit from multi-model orchestration
 
 **Examples:**
-- `nitzotz add rate limiting to the API endpoints` → `chain_nitzotz("add rate limiting to the API endpoints")`
-- `nefesh fix all pyright errors` → `swarm("fix all pyright errors")`
-- `chayah start` → `chain_chayah()`
-- `ein sof start` → `chain_ein_sof()`
+- `spr4 add rate limiting to the API endpoints` → `chain_spr4("add rate limiting to the API endpoints")`
+- `swarm fix all pyright errors` → `swarm("fix all pyright errors")`
+- `clr start` → `chain_clr()`
+- `hvd start` → `chain_hvd()`
 - `approve` → approve the most recent paused job
-- `reject use Redis instead of Memcached` → reject with that feedback

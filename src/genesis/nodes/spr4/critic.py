@@ -52,7 +52,7 @@ QUALITY_THRESHOLD = 0.7
 
 
 def build_critic_node(model: BaseChatModel, phase: str):
-    """Build a critic node for a specific Nitzotz phase.
+    """Build a critic node for a specific SPR-4 phase.
 
     The critic scores the phase's output and sets handoff_type to control
     whether the subgraph loops (retry) or exits (proceed to next phase).

@@ -12,22 +12,22 @@ Entry point: `genesis` — runs the MCP server over stdio.
 src/genesis/
   core/              # State, guards, memory, fitness, directives, resource control
   graphs/            # 5 compiled StateGraphs
-    nitzotz.py       # Nitzotz (phased pipeline) — chain_aril
-    chayah.py        # Chayah (evolution loop) — chain_ouroboros
-    nefesh.py        # Nefesh (parallel swarm) — swarm
-    ein_sof.py       # Ein Sof (meta-orchestrator) — chain_muther
+    spr4.py          # SPR-4 (phased pipeline) — chain_spr4
+    clr.py           # CLR (evolution loop) — chain_clr
+    pde.py           # PDE (parallel swarm) — swarm
+    hvd.py           # HVD (meta-orchestrator) — chain_hvd
     supervisor.py    # Option B hub-and-spoke — chain
   nodes/             # 20 node factories, organized by pattern
-    pipeline/        # Nitzotz: research, architect, implement, critic
-    sefirot/         # Sefirot: gevurah, chesed, tiferet, hod, netzach, yesod
-    swarm/           # Nefesh: sovereign, agent, merge
-    evolution/       # Chayah: assess, triage
+    spr4/        # SPR-4: research, architect, implement, critic
+    tfb/         # TFB: stress_tester, scope_analyzer, arbitrator, compliance, retry_controller, integration_gate
+    pde/           # PDE: task_decomposer, worker, aggregator
+    clr/       # CLR: health_scanner, classifier
     supervisor.py    # Option B supervisor
     validator.py     # Shared quality scorer
     human_review.py  # HITL via interrupt()
     gemini_assist.py # Debugging via Gemini CLI
-    ein_sof_dispatch.py  # Ein Sof pattern selector
-  subgraphs/         # Nitzotz phase subgraphs (research, planning, implementation, review)
+    hvd_dispatcher.py  # HVD pattern selector
+  subgraphs/         # SPR-4 phase subgraphs (research, planning, implementation, review)
   server/            # MCP server (13 tools) + background job manager
   config/            # YAML config loader, providers (Anthropic, Google)
   cli/               # CLI subprocess runners (run_claude, run_gemini)
@@ -63,26 +63,26 @@ scripts/             # Daemon scripts (ouroboros.sh, muther.sh)
 ### Graphs
 - Each graph has its own checkpointer (AsyncSqliteSaver).
 - Subgraphs compile without checkpointers — the parent handles persistence.
-- `chain_nitzotz` triggers Nitzotz. `swarm` triggers Nefesh. `chain_chayah` triggers Chayah. `chain_ein_sof` triggers Ein Sof.
+- `chain_spr4` triggers SPR-4. `swarm` triggers PDE. `chain_clr` triggers CLR. `chain_hvd` triggers HVD.
 
 ### CLI subprocesses
 - All subprocess calls go through `run_cli()` in `cli/cli.py`.
 - Always use `stdin=subprocess.DEVNULL` — prevents reading the MCP stdin pipe.
 - Subprocesses run in threads via `asyncio.to_thread`.
 
-## Pattern naming (Kabbalistic)
+## Pattern designations
 
-| Code name | Kabbalistic name | What it is |
+| Code name | Designation | What it is |
 |---|---|---|
-| `chain_nitzotz` | **Nitzotz** (Divine Sparks) | 4-phase pipeline with Sefirot balanced forces |
-| (inside Nitzotz) | **Sefirot** (Emanations) | 6 balanced force nodes: Gevurah, Chesed, Tiferet, Hod, Netzach, Yesod |
-| `chain_chayah` | **Chayah** (Living Soul) | Continuous evolution loop |
-| `swarm` | **Nefesh** (Animal Soul) | Parallel swarm dispatch |
-| (inside Nefesh) | **Klipah** (Shells) | Graduated dispatch mode |
-| `chain_ein_sof` | **Ein Sof** (The Infinite) | Meta-orchestrator |
-| `chain_revelation` | **Revelation** (The Unveiling) | Dead code purging in shadow worktree (planned) |
-| `chain_azerate` | **Azerate** (Shadow Dragon) | Proactive tool-builder from the Qliphoth (planned) |
-| (inside agents) | **Otiyot** (The Letters) | Immutable atomic primitives (planned) |
+| `chain_spr4` | **SPR-4** (Sequential Phase Runner) | 4-phase pipeline with Sefirot balanced forces |
+| (inside SPR-4) | **TFB** (Tri-Force Balancer) | 6 balanced force nodes: Gevurah, Chesed, Tiferet, Hod, Netzach, Yesod |
+| `chain_clr` | **CLR** (Closed-Loop Refiner) | Continuous evolution loop |
+| `swarm` | **PDE** (Parallel Dispatch Engine) | Parallel swarm dispatch |
+| (inside Nefesh) | **PDE-F** (Fibonacci Dispatch) | Graduated dispatch mode |
+| `chain_hvd` | **HVD** (Hypervisor Daemon) | Meta-orchestrator |
+| `chain_swp` | **SWP** (Shadow Worktree Purifier) | Dead code purging in shadow worktree (planned) |
+| `chain_pob` | **POB** (Proactive Observation Builder) | Proactive tool-builder from the Qliphoth (planned) |
+| (inside agents) | **ACL** (Atomic Component Library) | Immutable atomic primitives (planned) |
 | The system | **Genesis** | Where intent becomes reality |
 
 ## Things to avoid

@@ -1,4 +1,4 @@
-"""Triage node — classifies the highest-priority action for Chayah.
+"""Triage node — classifies the highest-priority action for CLR.
 
 Reads the health report and decides: fix (defects), refactor (code smells),
 feature (next spec item), or idle (converged). Uses Haiku for fast classification.
@@ -44,8 +44,8 @@ class TriageDecision(BaseModel):
     spec_item: str = Field(default="", description="Which SPEC.md item (if action is feature)")
 
 
-def build_triage_node(model: BaseChatModel):
-    """Build a triage node for Chayah's evolution loop.
+def build_classifier_node(model: BaseChatModel):
+    """Build a triage node for CLR's evolution loop.
 
     Args:
         model: LangChain chat model (Haiku — fast, cheap).
@@ -55,7 +55,7 @@ def build_triage_node(model: BaseChatModel):
     """
     structured_model = model.with_structured_output(TriageDecision)
 
-    async def triage_node(state: OrchestratorState) -> dict:
+    async def classifier_node(state: OrchestratorState) -> dict:
         """Classify the highest-priority action."""
         history = list(state.get("history", []))
         health = state.get("health_report") or {}
@@ -116,4 +116,4 @@ def build_triage_node(model: BaseChatModel):
             ],
         }
 
-    return triage_node
+    return classifier_node

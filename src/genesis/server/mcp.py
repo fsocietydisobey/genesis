@@ -2,8 +2,8 @@
 
 Loads .env automatically so API keys don't need to be in MCP config.
 
-13 MCP tools: health, research, architect, classify, chain, chain_nitzotz,
-chain_chayah, swarm, chain_ein_sof, status, approve, history, rewind.
+13 MCP tools: health, research, architect, classify, chain, chain_spr4,
+chain_clr, swarm, chain_hvd, status, approve, history, rewind.
 """
 
 import asyncio
@@ -23,11 +23,11 @@ load_dotenv(_project_root / ".env")
 from genesis.cli.prompts import build_prompt
 from genesis.cli.runners import run_claude, run_gemini
 from genesis.config import load_config, Router
-from genesis.graphs.nitzotz import build_nitzotz_graph
-from genesis.graphs.nefesh import build_nefesh_graph
-from genesis.graphs.ein_sof import build_ein_sof_graph
+from genesis.graphs.spr4 import build_spr4_graph
+from genesis.graphs.pde import build_pde_graph
+from genesis.graphs.hvd import build_hvd_graph
 from genesis.graphs.supervisor import build_orchestrator_graph
-from genesis.graphs.chayah import build_chayah_graph
+from genesis.graphs.clr import build_clr_graph
 from genesis.server.jobs import Job, create_job, format_job_status, get_job, list_jobs, notify_job_update
 from genesis.log import get_logger, setup_logging
 from genesis.prompts import ARCHITECT_SYSTEM_PROMPT, RESEARCH_SYSTEM_PROMPT
@@ -43,14 +43,14 @@ _server_start_time = time.time()
 
 _orchestrator_graph = None
 _checkpointer = None
-_nitzotz_graph = None
-_nitzotz_checkpointer = None
-_chayah_graph = None
-_chayah_checkpointer = None
-_nefesh_graph = None
-_nefesh_checkpointer = None
-_ein_sof_graph = None
-_ein_sof_checkpointer = None
+_spr4_graph = None
+_spr4_checkpointer = None
+_clr_graph = None
+_clr_checkpointer = None
+_pde_graph = None
+_pde_checkpointer = None
+_hvd_graph = None
+_hvd_checkpointer = None
 
 
 async def _get_graph():
@@ -61,36 +61,36 @@ async def _get_graph():
     return _orchestrator_graph
 
 
-async def _get_nitzotz_graph():
-    """Get or build the Nitzotz graph (lazy async singleton)."""
-    global _nitzotz_graph, _nitzotz_checkpointer
-    if _nitzotz_graph is None:
-        _nitzotz_graph, _nitzotz_checkpointer = await build_nitzotz_graph(config)
-    return _nitzotz_graph
+async def _get_spr4_graph():
+    """Get or build the SPR-4 graph (lazy async singleton)."""
+    global _spr4_graph, _spr4_checkpointer
+    if _spr4_graph is None:
+        _spr4_graph, _spr4_checkpointer = await build_spr4_graph(config)
+    return _spr4_graph
 
 
-async def _get_chayah_graph():
-    """Get or build the Chayah graph (lazy async singleton)."""
-    global _chayah_graph, _chayah_checkpointer
-    if _chayah_graph is None:
-        _chayah_graph, _chayah_checkpointer = await build_chayah_graph(config)
-    return _chayah_graph
+async def _get_clr_graph():
+    """Get or build the CLR graph (lazy async singleton)."""
+    global _clr_graph, _clr_checkpointer
+    if _clr_graph is None:
+        _clr_graph, _clr_checkpointer = await build_clr_graph(config)
+    return _clr_graph
 
 
-async def _get_nefesh_graph():
-    """Get or build the Nefesh graph (lazy async singleton)."""
-    global _nefesh_graph, _nefesh_checkpointer
-    if _nefesh_graph is None:
-        _nefesh_graph, _nefesh_checkpointer = await build_nefesh_graph(config)
-    return _nefesh_graph
+async def _get_pde_graph():
+    """Get or build the PDE graph (lazy async singleton)."""
+    global _pde_graph, _pde_checkpointer
+    if _pde_graph is None:
+        _pde_graph, _pde_checkpointer = await build_pde_graph(config)
+    return _pde_graph
 
 
-async def _get_ein_sof_graph():
-    """Get or build the Ein Sof graph (lazy async singleton)."""
-    global _ein_sof_graph, _ein_sof_checkpointer
-    if _ein_sof_graph is None:
-        _ein_sof_graph, _ein_sof_checkpointer = await build_ein_sof_graph(config)
-    return _ein_sof_graph
+async def _get_hvd_graph():
+    """Get or build the HVD graph (lazy async singleton)."""
+    global _hvd_graph, _hvd_checkpointer
+    if _hvd_graph is None:
+        _hvd_graph, _hvd_checkpointer = await build_hvd_graph(config)
+    return _hvd_graph
 
 
 # Create the MCP server
@@ -254,10 +254,10 @@ async def chain(task_description: str, context: str = "", thread_id: str = "") -
 
 
 @mcp.tool()
-async def chain_nitzotz(task_description: str, context: str = "", thread_id: str = "") -> str:
-    """Start the Nitzotz pipeline (Genesis) in the background.
+async def chain_spr4(task_description: str, context: str = "", thread_id: str = "") -> str:
+    """Start the SPR-4 pipeline (Genesis) in the background.
 
-    Nitzotz runs a phased pipeline: research → planning → implementation → review.
+    SPR-4 runs a phased pipeline: research → planning → implementation → review.
     Each phase has a critic that loops until quality passes or max steps reached.
     The pipeline PAUSES for human approval in the review phase.
 
@@ -272,9 +272,9 @@ async def chain_nitzotz(task_description: str, context: str = "", thread_id: str
         thread_id: Optional thread ID to continue a previous chain.
     """
     t_entry = time.time()
-    log.info("chain_nitzotz() called — task: %s", task_description[:80])
-    graph = await _get_nitzotz_graph()
-    log.info("Nitzotz graph ready (%.1fs)", time.time() - t_entry)
+    log.info("chain_spr4() called — task: %s", task_description[:80])
+    graph = await _get_spr4_graph()
+    log.info("SPR-4 graph ready (%.1fs)", time.time() - t_entry)
 
     job = create_job(thread_id=thread_id if thread_id else None)
     graph_config = {"configurable": {"thread_id": job.thread_id}}
@@ -296,7 +296,7 @@ async def chain_nitzotz(task_description: str, context: str = "", thread_id: str
                         continue
                     if isinstance(state_update, dict):
                         job.result.update(state_update)
-                    message = _build_nitzotz_progress_message(node_name, state_update)
+                    message = _build_spr4_progress_message(node_name, state_update)
                     job.progress.append(f"[{node_elapsed:.1f}s] {message}")
                     log.info("job %s [%.1fs]: %s", job.job_id, node_elapsed, message)
                     node_start = time.time()
@@ -309,27 +309,27 @@ async def chain_nitzotz(task_description: str, context: str = "", thread_id: str
                 is_paused = any("human_review" in str(n) for n in next_nodes)
                 if is_paused:
                     job.status = "paused"
-                    job.progress.append("Paused — waiting for human approval (Nitzotz review phase)")
+                    job.progress.append("Paused — waiting for human approval (SPR-4 review phase)")
                     log.info("job %s: paused at review phase", job.job_id)
                     notify_job_update(job)
                     return
 
             job.status = "completed"
             job.finished_at = time.time()
-            log.info("job %s: Nitzotz completed", job.job_id)
+            log.info("job %s: SPR-4 completed", job.job_id)
             notify_job_update(job)
 
         except Exception as e:
             job.status = "failed"
             job.error = str(e)
             job.finished_at = time.time()
-            log.error("job %s: Nitzotz failed — %s", job.job_id, e)
+            log.error("job %s: SPR-4 failed — %s", job.job_id, e)
             notify_job_update(job)
 
     job._task = asyncio.create_task(_run())
 
     return (
-        f"**Nitzotz Job started:** `{job.job_id}`\n"
+        f"**SPR-4 Job started:** `{job.job_id}`\n"
         f"**Thread:** `{job.thread_id}`\n\n"
         f"Phases: research → planning → implementation → review\n"
         f"Use `status(job_id=\"{job.job_id}\")` to check progress.\n\n"
@@ -338,8 +338,8 @@ async def chain_nitzotz(task_description: str, context: str = "", thread_id: str
 
 
 @mcp.tool()
-async def chain_chayah(max_cycles: int = 50, budget: float = 5.0) -> str:
-    """Start the Chayah continuous evolution loop.
+async def chain_clr(max_cycles: int = 50, budget: float = 5.0) -> str:
+    """Start the CLR continuous evolution loop.
 
     Autonomously improves the codebase: assess health → triage → execute → validate
     → commit or revert → loop. Reads SPEC.md for feature goals. Stops on convergence,
@@ -349,8 +349,8 @@ async def chain_chayah(max_cycles: int = 50, budget: float = 5.0) -> str:
         max_cycles: Maximum evolution cycles before stopping (default 50).
         budget: Maximum estimated cost in USD (default 5.0).
     """
-    log.info("chain_chayah() called — max_cycles=%d, budget=$%.2f", max_cycles, budget)
-    graph = await _get_chayah_graph()
+    log.info("chain_clr() called — max_cycles=%d, budget=$%.2f", max_cycles, budget)
+    graph = await _get_clr_graph()
 
     job = create_job()
     graph_config = {"configurable": {"thread_id": job.thread_id}}
@@ -384,7 +384,7 @@ async def chain_chayah(max_cycles: int = 50, budget: float = 5.0) -> str:
     job._task = asyncio.create_task(_run())
 
     return (
-        f"**Chayah (evolution loop) started:** `{job.job_id}`\n"
+        f"**CLR (evolution loop) started:** `{job.job_id}`\n"
         f"**Max cycles:** {max_cycles} | **Budget:** ${budget:.2f}\n\n"
         f"Use `status(job_id=\"{job.job_id}\")` to check progress."
     )
@@ -392,7 +392,7 @@ async def chain_chayah(max_cycles: int = 50, budget: float = 5.0) -> str:
 
 @mcp.tool()
 async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
-    """Start a Nefesh parallel swarm.
+    """Start a PDE parallel swarm.
 
     A Sovereign planner decomposes the goal into N independent tasks and dispatches
     them concurrently. Results are merged and validated atomically.
@@ -405,7 +405,7 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
         max_agents: Maximum parallel workers (default 10).
     """
     log.info("swarm() called — goal: %s, budget=$%.2f, max_agents=%d", goal[:80], budget, max_agents)
-    graph = await _get_nefesh_graph()
+    graph = await _get_pde_graph()
 
     job = create_job()
     graph_config = {"configurable": {"thread_id": job.thread_id}}
@@ -448,7 +448,7 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
     job._task = asyncio.create_task(_run())
 
     return (
-        f"**Nefesh (parallel swarm) started:** `{job.job_id}`\n"
+        f"**PDE (parallel swarm) started:** `{job.job_id}`\n"
         f"**Goal:** {goal}\n"
         f"**Max agents:** {max_agents} | **Budget:** ${budget:.2f}\n\n"
         f"Use `status(job_id=\"{job.job_id}\")` to check progress."
@@ -456,18 +456,18 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
 
 
 @mcp.tool()
-async def chain_ein_sof(budget: float = 10.0) -> str:
-    """Start Ein Sof — the autonomous meta-orchestrator.
+async def chain_hvd(budget: float = 10.0) -> str:
+    """Start HVD — the autonomous meta-orchestrator.
 
-    Monitors repository health, decides which pattern to spawn (Chayah for evolution,
-    Nefesh for batch fixes, Nitzotz for single tasks), enforces directives, and
+    Monitors repository health, decides which pattern to spawn (CLR for evolution,
+    PDE for batch fixes, SPR-4 for single tasks), enforces directives, and
     controls compute budget. The "leave it running" system.
 
     Args:
         budget: Maximum daily cost in USD (default 10.0).
     """
-    log.info("chain_ein_sof() called — budget=$%.2f", budget)
-    graph = await _get_ein_sof_graph()
+    log.info("chain_hvd() called — budget=$%.2f", budget)
+    graph = await _get_hvd_graph()
 
     job = create_job()
     graph_config = {"configurable": {"thread_id": job.thread_id}}
@@ -488,8 +488,8 @@ async def chain_ein_sof(budget: float = 10.0) -> str:
                         continue
                     if isinstance(state_update, dict):
                         job.result.update(state_update)
-                    cycle = state_update.get("ein_sof_cycle", "") if isinstance(state_update, dict) else ""
-                    message = f"Ein Sof [{node_name}]"
+                    cycle = state_update.get("hvd_cycle", "") if isinstance(state_update, dict) else ""
+                    message = f"HVD [{node_name}]"
                     if cycle:
                         message += f" cycle {cycle}"
                     job.progress.append(message)
@@ -506,9 +506,9 @@ async def chain_ein_sof(budget: float = 10.0) -> str:
     job._task = asyncio.create_task(_run())
 
     return (
-        f"**Ein Sof (meta-orchestrator) started:** `{job.job_id}`\n"
+        f"**HVD (meta-orchestrator) started:** `{job.job_id}`\n"
         f"**Daily budget:** ${budget:.2f}\n\n"
-        f"Ein Sof will assess, dispatch, and manage patterns autonomously.\n"
+        f"HVD will assess, dispatch, and manage patterns autonomously.\n"
         f"Use `status(job_id=\"{job.job_id}\")` to check progress."
     )
 
@@ -766,8 +766,8 @@ def _build_progress_message(node_name: str, state_update: dict) -> str:
     return f"{node_name}: completed"
 
 
-def _build_nitzotz_progress_message(node_name: str, state_update: dict) -> str:
-    """Build a phase-aware progress message for Nitzotz graph updates."""
+def _build_spr4_progress_message(node_name: str, state_update: dict) -> str:
+    """Build a phase-aware progress message for SPR-4 graph updates."""
     if state_update is None:
         state_update = {}
 
@@ -864,11 +864,11 @@ def _format_graph_result(state: dict) -> str:
 
 async def _cleanup():
     """Close checkpointer connections on shutdown."""
-    global _checkpointer, _nitzotz_checkpointer, _chayah_checkpointer, _nefesh_checkpointer, _ein_sof_checkpointer
+    global _checkpointer, _spr4_checkpointer, _clr_checkpointer, _pde_checkpointer, _hvd_checkpointer
     for name, cp in [
-        ("supervisor", _checkpointer), ("nitzotz", _nitzotz_checkpointer),
-        ("chayah", _chayah_checkpointer), ("nefesh", _nefesh_checkpointer),
-        ("ein_sof", _ein_sof_checkpointer),
+        ("supervisor", _checkpointer), ("spr4", _spr4_checkpointer),
+        ("clr", _clr_checkpointer), ("pde", _pde_checkpointer),
+        ("hvd", _hvd_checkpointer),
     ]:
         if cp is not None:
             try:
@@ -877,10 +877,10 @@ async def _cleanup():
             except Exception as e:
                 log.warning("%s checkpointer cleanup failed: %s", name, e)
     _checkpointer = None
-    _nitzotz_checkpointer = None
-    _chayah_checkpointer = None
-    _nefesh_checkpointer = None
-    _ein_sof_checkpointer = None
+    _spr4_checkpointer = None
+    _clr_checkpointer = None
+    _pde_checkpointer = None
+    _hvd_checkpointer = None
 
 
 def main():

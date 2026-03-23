@@ -1,4 +1,4 @@
-"""Implementation phase subgraph — Sephirotic balanced forces.
+"""Implementation phase subgraph — TFB balanced forces.
 
 Full flow with expansion/restriction/synthesis:
     guard → implement → gevurah (attack) → chesed (propose) → tiferet (arbitrate) → hod (format)
@@ -13,11 +13,11 @@ from langgraph.graph import END, START, StateGraph
 
 from genesis.core.guards import require_plan_approved
 from genesis.core.state import OrchestratorState
-from genesis.nodes.sefirot.chesed import build_chesed_node
-from genesis.nodes.sefirot.gevurah import build_gevurah_node
-from genesis.nodes.sefirot.hod import build_hod_node
-from genesis.nodes.pipeline.implement import build_implement_node
-from genesis.nodes.sefirot.tiferet import build_tiferet_node
+from genesis.nodes.tfb.scope_analyzer import build_scope_analyzer_node
+from genesis.nodes.tfb.stress_tester import build_stress_tester_node
+from genesis.nodes.tfb.compliance import build_compliance_node
+from genesis.nodes.spr4.implement import build_implement_node
+from genesis.nodes.tfb.arbitrator import build_arbitrator_node
 
 
 async def _guard_node(state: OrchestratorState) -> dict:
@@ -39,11 +39,11 @@ def _after_guard(state: OrchestratorState) -> str:
 
 
 def _after_tiferet(state: OrchestratorState) -> str:
-    """Route based on Tiferet's arbitration decision."""
-    tiferet = state.get("tiferet_decision") or {}
+    """Route based on Arbitrator's arbitration decision."""
+    tiferet = state.get("arbitration_decision") or {}
     handoff = state.get("handoff_type", "")
 
-    # Gevurah blocker or Tiferet says rework needed
+    # Stress Tester blocker or Arbitrator says rework needed
     if tiferet.get("needs_rework") or handoff == "tests_failing":
         # Check step limit
         step = state.get("phase_step", 0)
@@ -59,33 +59,33 @@ def build_implementation_subgraph(
     critic_model: BaseChatModel,
     review_model: BaseChatModel | None = None,
 ):
-    """Build the implementation phase subgraph with Sephirotic balanced forces.
+    """Build the implementation phase subgraph with TFB balanced forces.
 
     Flow: guard → implement → gevurah → chesed → tiferet → hod → exit
     With loop: if tiferet says needs_rework → back to implement
 
     Args:
-        critic_model: LangChain model for Gevurah and Chesed (Haiku).
-        review_model: LangChain model for Tiferet (should be different from
+        critic_model: LangChain model for Stress Tester and ScopeAnalyzer (Haiku).
+        review_model: LangChain model for Arbitrator (should be different from
             the builder for cross-model review). Falls back to critic_model.
 
     Returns:
         Compiled StateGraph (no checkpointer — parent handles that).
     """
     implement_node = build_implement_node()
-    gevurah_node = build_gevurah_node(critic_model)
-    chesed_node = build_chesed_node(critic_model)
-    tiferet_node = build_tiferet_node(review_model or critic_model)
-    hod_node = build_hod_node()
+    stress_tester_node = build_stress_tester_node(critic_model)
+    scope_analyzer_node = build_scope_analyzer_node(critic_model)
+    arbitrator_node = build_arbitrator_node(review_model or critic_model)
+    compliance_node = build_compliance_node()
 
     graph = StateGraph(OrchestratorState)
 
     graph.add_node("guard", _guard_node)
     graph.add_node("implement", implement_node)
-    graph.add_node("gevurah", gevurah_node)
-    graph.add_node("chesed", chesed_node)
-    graph.add_node("tiferet", tiferet_node)
-    graph.add_node("hod", hod_node)
+    graph.add_node("gevurah", stress_tester_node)
+    graph.add_node("chesed", scope_analyzer_node)
+    graph.add_node("tiferet", arbitrator_node)
+    graph.add_node("hod", compliance_node)
 
     # Entry
     graph.add_edge(START, "guard")
@@ -95,19 +95,19 @@ def build_implementation_subgraph(
         {"implement": "implement", END: END},
     )
 
-    # Implementation → Gevurah (attack) → Chesed (propose) → Tiferet (arbitrate)
+    # Implementation → Stress Tester (attack) → ScopeAnalyzer (propose) → Arbitrator (arbitrate)
     graph.add_edge("implement", "gevurah")
     graph.add_edge("gevurah", "chesed")
     graph.add_edge("chesed", "tiferet")
 
-    # Tiferet decides: rework or proceed to Hod
+    # Arbitrator decides: rework or proceed to Compliance
     graph.add_conditional_edges(
         "tiferet",
         _after_tiferet,
         {"implement": "implement", "hod": "hod"},
     )
 
-    # Hod (format) → exit
+    # Compliance (format) → exit
     graph.add_edge("hod", END)
 
     return graph.compile()

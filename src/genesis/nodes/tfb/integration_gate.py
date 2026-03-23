@@ -1,8 +1,8 @@
-"""Yesod (Foundation) — comprehensive integration validation gate.
+"""Integration Gate (Foundation) — comprehensive integration validation gate.
 
 The final checkpoint before commit. Runs the full test suite, type checker,
 and git diff review. Unlike the simple validator (which scores one output),
-Yesod validates the ENTIRE codebase state after all changes.
+Integration Gate validates the ENTIRE codebase state after all changes.
 
 All checks are deterministic (subprocess calls) — no LLM involved.
 """
@@ -13,7 +13,7 @@ import json
 from genesis.log import get_logger
 from genesis.core.state import OrchestratorState
 
-log = get_logger("node.yesod")
+log = get_logger("node.integration_gate")
 
 
 async def _run_tool(cmd: list[str], timeout: int = 120) -> tuple[int, str, str]:
@@ -39,7 +39,7 @@ async def _run_tool(cmd: list[str], timeout: int = 120) -> tuple[int, str, str]:
         return (1, "", f"Command not found: {cmd[0]}")
 
 
-def build_yesod_node():
+def build_integration_gate_node():
     """Build a comprehensive integration validation gate.
 
     Runs pytest, pyright, and git diff review. All deterministic — no LLM calls.
@@ -48,7 +48,7 @@ def build_yesod_node():
         Async node function compatible with LangGraph StateGraph.
     """
 
-    async def yesod_node(state: OrchestratorState) -> dict:
+    async def integration_gate_node(state: OrchestratorState) -> dict:
         """Run full integration validation suite."""
         history = list(state.get("history", []))
 
@@ -162,12 +162,12 @@ def build_yesod_node():
         )
 
         history_entry = (
-            f"yesod: {'PASSED' if passed else 'FAILED'} — "
+            f"integration_gate: {'PASSED' if passed else 'FAILED'} — "
             + ", ".join(checks_run)
         )
 
         result: dict = {
-            "yesod_result": result_dict,
+            "integration_result": result_dict,
             "history": history + [history_entry],
         }
 
@@ -176,4 +176,4 @@ def build_yesod_node():
 
         return result
 
-    return yesod_node
+    return integration_gate_node

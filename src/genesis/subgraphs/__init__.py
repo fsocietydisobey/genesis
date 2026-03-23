@@ -1,4 +1,4 @@
-"""Nitzotz phase subgraphs — each compiles to a runnable StateGraph."""
+"""SPR-4 phase subgraphs — each compiles to a runnable StateGraph."""
 
 from genesis.subgraphs.implementation import build_implementation_subgraph
 from genesis.subgraphs.planning import build_planning_subgraph

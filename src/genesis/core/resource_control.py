@@ -1,4 +1,4 @@
-"""Resource control for Ein Sof — budget tracking and throttling.
+"""Resource control for HVD — budget tracking and throttling.
 
 Tracks compute spend across all spawned entities. Can throttle, hibernate,
 or kill entities that exceed their allocation.
@@ -14,7 +14,7 @@ log = get_logger("resource_control")
 
 @dataclass
 class GlobalBudget:
-    """Global resource limits for Ein Sof."""
+    """Global resource limits for HVD."""
 
     max_daily_cost_usd: float = 10.0
     max_concurrent_entities: int = 3

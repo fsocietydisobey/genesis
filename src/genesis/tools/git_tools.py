@@ -1,4 +1,4 @@
-"""Git safety tools for Chayah (evolution loop).
+"""Git safety tools for CLR (evolution loop).
 
 Provides checkpoint, revert, and diff functions. All operations use
 asyncio subprocess calls with cwd set to the project root.
@@ -39,7 +39,7 @@ async def git_checkpoint(message: str) -> bool:
         return False
 
     await _run_git("add", "-A")
-    code, stdout, stderr = await _run_git("commit", "-m", f"chayah: {message}")
+    code, stdout, stderr = await _run_git("commit", "-m", f"clr: {message}")
     if code == 0:
         log.info("committed: %s", message)
         return True

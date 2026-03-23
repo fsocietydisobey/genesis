@@ -1,4 +1,4 @@
-"""Hod (Submission/Process) — deterministic formatting, linting, and documentation.
+"""Compliance (Submission/Process) — deterministic formatting, linting, and documentation.
 
 Pure restriction. No creative decisions. Runs ruff format, ruff check --fix,
 and reports what was changed. This is the "enforce the repo's laws" node.
@@ -12,7 +12,7 @@ import json
 from genesis.log import get_logger
 from genesis.core.state import OrchestratorState
 
-log = get_logger("node.hod")
+log = get_logger("node.compliance")
 
 
 async def _run_tool(cmd: list[str], cwd: str | None = None) -> tuple[int, str, str]:
@@ -31,7 +31,7 @@ async def _run_tool(cmd: list[str], cwd: str | None = None) -> tuple[int, str, s
     )
 
 
-def build_hod_node():
+def build_compliance_node():
     """Build a deterministic compliance enforcement node.
 
     Runs ruff format and ruff check --fix on the project. No LLM calls —
@@ -41,7 +41,7 @@ def build_hod_node():
         Async node function compatible with LangGraph StateGraph.
     """
 
-    async def hod_node(state: OrchestratorState) -> dict:
+    async def compliance_node(state: OrchestratorState) -> dict:
         """Run formatting and linting tools, report changes."""
         history = list(state.get("history", []))
         report: dict = {
@@ -114,8 +114,8 @@ def build_hod_node():
             history_entry += f", {error_count} tool errors"
 
         return {
-            "hod_report": report,
+            "compliance_report": report,
             "history": history + [history_entry],
         }
 
-    return hod_node
+    return compliance_node

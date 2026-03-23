@@ -1,7 +1,7 @@
-"""Netzach (Endurance) — strategic retry engine.
+"""RetryController (Endurance) — strategic retry engine.
 
 Replaces naive retry (same prompt + feedback) with intelligent strategy selection.
-When a node fails, Netzach analyzes the failure pattern and chooses the best
+When a node fails, RetryController analyzes the failure pattern and chooses the best
 retry approach: simple retry, model escalation, task decomposition, or graceful exit.
 
 Tracks retry history to avoid repeating the same failed approach.
@@ -14,9 +14,9 @@ from pydantic import BaseModel, Field
 from genesis.log import get_logger
 from genesis.core.state import OrchestratorState
 
-log = get_logger("node.netzach")
+log = get_logger("node.retry_controller")
 
-NETZACH_SYSTEM_PROMPT = """\
+RETRY_CONTROLLER_SYSTEM_PROMPT = """\
 You are a retry strategy advisor. A node in the pipeline has failed.
 Analyze the failure and choose the best retry approach.
 
@@ -61,7 +61,7 @@ class RetryStrategy(BaseModel):
     )
 
 
-def build_netzach_node(model: BaseChatModel):
+def build_retry_controller_node(model: BaseChatModel):
     """Build a strategic retry engine node.
 
     Args:
@@ -72,7 +72,7 @@ def build_netzach_node(model: BaseChatModel):
     """
     structured_model = model.with_structured_output(RetryStrategy)
 
-    async def netzach_node(state: OrchestratorState) -> dict:
+    async def retry_controller_node(state: OrchestratorState) -> dict:
         """Analyze failure and choose retry strategy."""
         history = list(state.get("history", []))
         retry_history = list(state.get("retry_history") or [])
@@ -81,8 +81,8 @@ def build_netzach_node(model: BaseChatModel):
         if not node_failure:
             log.info("no failure to analyze, passing")
             return {
-                "netzach_strategy": {"strategy": "retry", "reasoning": "no failure detected"},
-                "history": history + ["netzach: no failure to analyze"],
+                "retry_strategy": {"strategy": "retry", "reasoning": "no failure detected"},
+                "history": history + ["retry_controller: no failure to analyze"],
             }
 
         failed_node = node_failure.get("node", "unknown")
@@ -109,7 +109,7 @@ def build_netzach_node(model: BaseChatModel):
             prompt += "No previous retries.\n"
 
         messages = [
-            SystemMessage(content=NETZACH_SYSTEM_PROMPT),
+            SystemMessage(content=RETRY_CONTROLLER_SYSTEM_PROMPT),
             HumanMessage(content=prompt),
         ]
 
@@ -138,10 +138,10 @@ def build_netzach_node(model: BaseChatModel):
         }
 
         result: dict = {
-            "netzach_strategy": strategy_dict,
+            "retry_strategy": strategy_dict,
             "retry_history": [retry_entry],
             "history": history + [
-                f"netzach: {failed_node} attempt {attempt} → {strategy.strategy} — {strategy.reasoning}"
+                f"retry_controller: {failed_node} attempt {attempt} → {strategy.strategy} — {strategy.reasoning}"
             ],
         }
 
@@ -155,4 +155,4 @@ def build_netzach_node(model: BaseChatModel):
 
         return result
 
-    return netzach_node
+    return retry_controller_node

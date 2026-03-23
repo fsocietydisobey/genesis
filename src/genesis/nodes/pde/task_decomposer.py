@@ -1,7 +1,7 @@
-"""Sovereign node — task decomposition for Nefesh parallel swarm.
+"""Sovereign node — task decomposition for PDE parallel swarm.
 
 Decomposes a high-level goal into N independent, file-disjoint tasks.
-Supports two dispatch modes: flat (all at once) and Klipah
+Supports two dispatch modes: flat (all at once) and PDE-F
 (graduated generations based on dependencies).
 """
 
@@ -34,7 +34,7 @@ break it into independent sub-tasks that can be executed simultaneously.
 ## Dispatch mode
 
 - If ALL tasks are independent (empty dependencies) → dispatch_mode: "flat"
-- If some tasks depend on others → dispatch_mode: "klipah"
+- If some tasks depend on others → dispatch_mode: "fibonacci"
   (the system will dispatch in graduated generations: 1 → 1 → 2 → 3 → 5)
 """
 
@@ -56,11 +56,11 @@ class TaskManifest(BaseModel):
     """Structured decomposition from the Sovereign."""
 
     tasks: list[SwarmTask] = Field(description="Independent tasks (max 15)")
-    dispatch_mode: str = Field(description="flat | klipah")
+    dispatch_mode: str = Field(description="flat | fibonacci")
     reasoning: str = Field(description="Why this decomposition was chosen")
 
 
-def build_sovereign_node(model: BaseChatModel):
+def build_task_decomposer_node(model: BaseChatModel):
     """Build a Sovereign task decomposition node.
 
     Args:
@@ -71,7 +71,7 @@ def build_sovereign_node(model: BaseChatModel):
     """
     structured_model = model.with_structured_output(TaskManifest)
 
-    async def sovereign_node(state: OrchestratorState) -> dict:
+    async def task_decomposer_node(state: OrchestratorState) -> dict:
         """Decompose the goal into parallel tasks."""
         task = state.get("task", "")
         context = state.get("context", "")
@@ -130,13 +130,13 @@ def build_sovereign_node(model: BaseChatModel):
             ],
         }
 
-    return sovereign_node
+    return task_decomposer_node
 
 
-# --- Klipah (graduated dispatch) utilities ---
+# --- PDE-F (graduated dispatch) utilities ---
 
-def _klipah_sequence(n: int) -> list[int]:
-    """First n Klipah sequence numbers (1, 1, 2, 3, 5, 8...)."""
+def _fibonacci_sequence(n: int) -> list[int]:
+    """First n PDE-F sequence numbers (1, 1, 2, 3, 5, 8...)."""
     if n == 0:
         return []
     seq = [1, 1]
@@ -145,14 +145,14 @@ def _klipah_sequence(n: int) -> list[int]:
     return seq[:n]
 
 
-def klipah_budget(generation: int, base_tokens: int = 2000) -> int:
-    """Token budget per agent in a generation, scaled by Klipah sequence."""
-    seq = _klipah_sequence(generation + 1)
+def fibonacci_budget(generation: int, base_tokens: int = 2000) -> int:
+    """Token budget per agent in a generation, scaled by PDE-F sequence."""
+    seq = _fibonacci_sequence(generation + 1)
     return base_tokens * seq[-1] if seq else base_tokens
 
 
 def sort_into_generations(tasks: list[dict]) -> list[list[dict]]:
-    """Group tasks into Klipah-width generations by dependency depth.
+    """Group tasks into PDE-F-width generations by dependency depth.
 
     Tasks with no dependencies go in Gen 1. Tasks that depend on Gen 1
     tasks go in Gen 2. And so on. Each generation's width is capped to
@@ -209,11 +209,11 @@ def sort_into_generations(tasks: list[dict]) -> list[list[dict]]:
             generations.append(gen)
 
     # Cap widths to Fibonacci sequence
-    fib = _klipah_sequence(len(generations))
+    fib = _fibonacci_sequence(len(generations))
     for i, gen in enumerate(generations):
         cap = fib[i] if i < len(fib) else fib[-1]
         if len(gen) > cap:
             # Overflow tasks stay in this generation but will be dispatched sequentially
-            log.info("gen %d: %d tasks exceeds Klipah cap %d", i + 1, len(gen), cap)
+            log.info("gen %d: %d tasks exceeds Fibonacci cap %d", i + 1, len(gen), cap)
 
     return generations

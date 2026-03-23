@@ -1,11 +1,11 @@
-"""Nefesh graph — parallel swarm dispatch.
+"""PDE graph — parallel swarm dispatch.
 
 The Animal Soul. Central Sovereign decomposes a goal into N independent tasks,
 fans out via Send(), merges results, and validates atomically.
 
 Supports two dispatch modes:
     - Flat: all tasks dispatched at once (for independent tasks)
-    - Klipah: graduated generations (for tasks with dependencies)
+    - Fibonacci: graduated generations (for tasks with dependencies)
 """
 
 from __future__ import annotations
@@ -15,19 +15,19 @@ from langgraph.types import Send
 
 from genesis.config import OrchestratorConfig, get_classify_model
 from genesis.core.state import OrchestratorState
-from genesis.nodes.swarm.sovereign import build_sovereign_node, sort_into_generations, klipah_budget
-from genesis.nodes.swarm.agent import build_swarm_agent_node
-from genesis.nodes.swarm.merge import build_swarm_merge_node
+from genesis.nodes.pde.task_decomposer import build_task_decomposer_node, sort_into_generations, fibonacci_budget
+from genesis.nodes.pde.worker import build_pde_worker_node
+from genesis.nodes.pde.aggregator import build_pde_aggregator_node
 from genesis.log import get_logger
 
-log = get_logger("nefesh")
+log = get_logger("pde")
 
 
 def _fan_out(state: OrchestratorState) -> list[Send]:
     """Dispatch tasks based on the Sovereign's manifest.
 
     Flat mode: Send() all tasks at once.
-    Klipah mode: Sort tasks into generations by dependency depth,
+    Fibonacci mode: Sort tasks into generations by dependency depth,
     then dispatch all generations. Each generation's tasks get context from
     previous generations via accumulated state.
 
@@ -44,15 +44,15 @@ def _fan_out(state: OrchestratorState) -> list[Send]:
         log.warning("no tasks in manifest — nothing to dispatch")
         return [Send("merge", {})]
 
-    if mode == "klipah" and any(t.get("dependencies") for t in tasks):
-        # Klipah mode: sort into generations
+    if mode == "fibonacci" and any(t.get("dependencies") for t in tasks):
+        # Fibonacci mode: sort into generations
         generations = sort_into_generations(tasks)
-        log.info("klipah dispatch: %d generations", len(generations))
+        log.info("fibonacci dispatch: %d generations", len(generations))
 
         sends = []
         accumulated_context = ""
         for gen_idx, gen_tasks in enumerate(generations):
-            budget = klipah_budget(gen_idx)
+            budget = fibonacci_budget(gen_idx)
             for task in gen_tasks:
                 payload = {
                     "task": task.get("id", "unknown"),
@@ -89,8 +89,8 @@ def _fan_out(state: OrchestratorState) -> list[Send]:
     return sends
 
 
-async def build_nefesh_graph(config: OrchestratorConfig):
-    """Build and compile the Nefesh parallel swarm graph.
+async def build_pde_graph(config: OrchestratorConfig):
+    """Build and compile the PDE parallel swarm graph.
 
     Args:
         config: OrchestratorConfig with provider/role definitions.
@@ -108,23 +108,23 @@ async def build_nefesh_graph(config: OrchestratorConfig):
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
     ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
-    db_path = str(data_dir / "nefesh_checkpoints.db")
+    db_path = str(data_dir / "pde_checkpoints.db")
 
     conn = await aiosqlite.connect(db_path)
     await conn.execute("PRAGMA journal_mode=WAL")
     checkpointer = AsyncSqliteSaver(conn)
     await checkpointer.setup()
-    log.info("Nefesh checkpointer ready: %s", db_path)
+    log.info("PDE checkpointer ready: %s", db_path)
 
     model = get_classify_model(config)
-    sovereign_node = build_sovereign_node(model)
-    swarm_agent_node = build_swarm_agent_node()
-    merge_node = build_swarm_merge_node()
+    task_decomposer_node = build_task_decomposer_node(model)
+    pde_worker_node = build_pde_worker_node()
+    merge_node = build_pde_aggregator_node()
 
     graph = StateGraph(OrchestratorState)
 
-    graph.add_node("sovereign", sovereign_node)
-    graph.add_node("swarm_agent", swarm_agent_node)
+    graph.add_node("sovereign", task_decomposer_node)
+    graph.add_node("swarm_agent", pde_worker_node)
     graph.add_node("merge", merge_node)
 
     graph.add_edge(START, "sovereign")

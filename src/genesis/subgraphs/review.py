@@ -1,6 +1,6 @@
-"""Review phase subgraph — Yesod integration gate + human approval.
+"""Review phase subgraph — Integration Gate integration gate + human approval.
 
-Runs the Yesod integration validator (full test suite + type checker + diff review),
+Runs the Integration Gate integration validator (full test suite + type checker + diff review),
 then pauses for human approval via the existing human_review node.
 
     yesod (integration gate) → human_review (PAUSED) → exit
@@ -13,7 +13,7 @@ from langgraph.graph import END, START, StateGraph
 
 from genesis.core.state import OrchestratorState
 from genesis.nodes.human_review import build_human_review_node
-from genesis.nodes.sefirot.yesod import build_yesod_node
+from genesis.nodes.tfb.integration_gate import build_integration_gate_node
 
 
 async def _set_review_handoff(state: OrchestratorState) -> dict:
@@ -36,23 +36,23 @@ async def _set_review_handoff(state: OrchestratorState) -> dict:
 
 
 def build_review_subgraph(validator_model: BaseChatModel):
-    """Build the review phase subgraph with Yesod integration gate.
+    """Build the review phase subgraph with Integration Gate integration gate.
 
     Flow: yesod (integration) → human_review (HITL) → set_handoff → exit
 
     Args:
-        validator_model: LangChain model (unused — Yesod is deterministic,
+        validator_model: LangChain model (unused — Integration Gate is deterministic,
             but kept for API consistency with other subgraph builders).
 
     Returns:
         Compiled StateGraph (no checkpointer — parent handles that).
     """
-    yesod_node = build_yesod_node()
+    integration_gate_node = build_integration_gate_node()
     human_review_node = build_human_review_node()
 
     graph = StateGraph(OrchestratorState)
 
-    graph.add_node("yesod", yesod_node)
+    graph.add_node("yesod", integration_gate_node)
     graph.add_node("human_review", human_review_node)
     graph.add_node("set_handoff", _set_review_handoff)
 

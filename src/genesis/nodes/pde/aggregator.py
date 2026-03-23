@@ -30,14 +30,14 @@ async def _run_tests() -> tuple[bool, str]:
         return True, "pytest not found — skipping"
 
 
-def build_swarm_merge_node():
+def build_pde_aggregator_node():
     """Build a merge node that combines parallel agent results.
 
     Returns:
         Async node function compatible with LangGraph StateGraph.
     """
 
-    async def swarm_merge_node(state: OrchestratorState) -> dict:
+    async def pde_aggregator_node(state: OrchestratorState) -> dict:
         """Merge all swarm results and run integrity check."""
         history = list(state.get("history", []))
         results = state.get("swarm_results") or []
@@ -80,4 +80,4 @@ def build_swarm_merge_node():
             "history": history + [history_entry],
         }
 
-    return swarm_merge_node
+    return pde_aggregator_node

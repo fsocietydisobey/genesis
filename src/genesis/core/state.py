@@ -114,7 +114,7 @@ class OrchestratorState(TypedDict, total=False):
     # --- Error recovery ---
     node_failure: Annotated[dict[str, Any], _node_failure_reducer]
 
-    # --- Nitzotz (phased pipeline) ---
+    # --- SPR-4 (phased pipeline) ---
     # Phase routing
     phase: str  # Current phase: "research", "planning", "implementation", "review"
     handoff_type: str  # Routing signal between phases/nodes (e.g. "research_complete", "plan_approved")
@@ -135,16 +135,16 @@ class OrchestratorState(TypedDict, total=False):
     # Persistent memory
     memory_context: str  # Injected context from past runs
 
-    # --- Sefirot (balanced forces) ---
-    gevurah_verdict: dict[str, Any]  # GevurahVerdict as dict: issues, recommendation
-    chesed_proposals: list[dict[str, Any]]  # List of Proposal dicts from Chesed
-    tiferet_decision: dict[str, Any]  # TiferetDecision as dict: accepted, rejected, rationale
-    hod_report: dict[str, Any]  # Hod compliance report: files_formatted, lint_fixes
-    netzach_strategy: dict[str, Any]  # RetryStrategy as dict: strategy, modified_instructions
-    yesod_result: dict[str, Any]  # IntegrationResult as dict: passed, test_results, type_errors
-    retry_history: Annotated[list[dict[str, Any]], operator.add]  # Tracks retry attempts for Netzach
+    # --- TFB (balanced forces) ---
+    stress_test_verdict: dict[str, Any]  # StressTestVerdict as dict: issues, recommendation
+    scope_proposals: list[dict[str, Any]]  # List of Proposal dicts from ScopeAnalyzer
+    arbitration_decision: dict[str, Any]  # ArbitrationDecision as dict: accepted, rejected, rationale
+    compliance_report: dict[str, Any]  # Compliance report: files_formatted, lint_fixes
+    retry_strategy: dict[str, Any]  # RetryStrategy as dict: strategy, modified_instructions
+    integration_result: dict[str, Any]  # IntegrationResult as dict: passed, test_results, type_errors
+    retry_history: Annotated[list[dict[str, Any]], operator.add]  # Tracks retry attempts for RetryController
 
-    # --- Chayah (continuous evolution) ---
+    # --- CLR (continuous evolution) ---
     health_report: dict[str, Any]  # HealthReport as dict
     health_score: float  # Current health score (0.0-1.0)
     health_baseline: float  # Score at start of current cycle
@@ -153,9 +153,9 @@ class OrchestratorState(TypedDict, total=False):
     consecutive_no_improvement: int  # For convergence detection
     requires_restart: bool  # Self-modification detected
     evolution_action: str  # "fix" | "refactor" | "feature" | "idle"
-    evolution_task: str  # Task description for Nitzotz
+    evolution_task: str  # Task description for SPR-4
 
-    # --- Nefesh (parallel swarm) ---
+    # --- PDE (parallel swarm) ---
     swarm_manifest: dict[str, Any]  # TaskManifest as dict
     swarm_results: Annotated[list[dict[str, Any]], operator.add]  # Per-agent results (append)
     swarm_outcome: str  # "success" | "failed" | "partial"
@@ -163,14 +163,14 @@ class OrchestratorState(TypedDict, total=False):
     swarm_budget: dict[str, Any]  # Budget config
     swarm_cost_estimate: float  # Running cost estimate
 
-    # --- Klipah (graduated dispatch) ---
+    # --- PDE-F (graduated dispatch) ---
     current_generation: int  # Which generation is being dispatched
     generation_results: Annotated[list[dict[str, Any]], operator.add]  # Per-generation results
-    dispatch_mode: str  # "flat" | "klipah"
+    dispatch_mode: str  # "flat" | "fibonacci"
 
-    # --- Ein Sof (meta-orchestrator) ---
-    active_entities: list[dict[str, Any]]  # Running entities tracked by Ein Sof
+    # --- HVD (meta-orchestrator) ---
+    active_entities: list[dict[str, Any]]  # Running entities tracked by HVD
     dispatch_decision: dict[str, Any]  # DispatchDecision as dict
     directive_result: dict[str, Any]  # DirectiveResult as dict
     global_budget: dict[str, Any]  # GlobalBudget as dict
-    ein_sof_cycle: int  # Ein Sof's own cycle count
+    hvd_cycle: int  # HVD's own cycle count

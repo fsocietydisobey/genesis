@@ -11,14 +11,14 @@ from genesis.core.state import OrchestratorState
 log = get_logger("node.assess")
 
 
-def build_assess_node():
+def build_health_scanner_node():
     """Build an assess node that runs the fitness function.
 
     Returns:
         Async node function compatible with LangGraph StateGraph.
     """
 
-    async def assess_node(state: OrchestratorState) -> dict:
+    async def health_scanner_node(state: OrchestratorState) -> dict:
         """Run health assessment and write results to state."""
         history = list(state.get("history", []))
         cycle = state.get("cycle_count", 0)
@@ -45,4 +45,4 @@ def build_assess_node():
             ],
         }
 
-    return assess_node
+    return health_scanner_node

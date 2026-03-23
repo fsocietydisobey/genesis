@@ -1,6 +1,6 @@
-"""Evolution memory for Chayah — tracks what worked and what failed per cycle.
+"""Evolution memory for CLR — tracks what worked and what failed per cycle.
 
-Separate from Nitzotz memory.py (which tracks cross-run task context).
+Separate from SPR-4 memory.py (which tracks cross-run task context).
 This tracks the evolution history: which cycles improved health, which
 were reverted, which spec items failed repeatedly.
 """

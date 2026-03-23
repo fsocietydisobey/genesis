@@ -1,9 +1,9 @@
-"""Planning phase subgraph — architect with Gevurah adversarial review.
+"""Planning phase subgraph — architect with Stress Tester adversarial review.
 
 Orchestrates the existing architect node (Claude CLI) in a loop:
     architect → gevurah (adversarial review) → (loop if blockers, exit if plan_approved)
 
-Gevurah replaces the passive critic — it actively tries to find flaws in the
+Stress Tester replaces the passive critic — it actively tries to find flaws in the
 architecture plan. If blockers are found, the architect revises.
 """
 
@@ -11,14 +11,14 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, START, StateGraph
 
 from genesis.core.state import OrchestratorState
-from genesis.nodes.pipeline.architect import build_architect_node
-from genesis.nodes.pipeline.critic import build_critic_node
-from genesis.nodes.sefirot.gevurah import build_gevurah_node
+from genesis.nodes.spr4.architect import build_architect_node
+from genesis.nodes.spr4.critic import build_critic_node
+from genesis.nodes.tfb.stress_tester import build_stress_tester_node
 
 
 def _after_gevurah(state: OrchestratorState) -> str:
-    """Route based on Gevurah's verdict."""
-    verdict = state.get("gevurah_verdict") or {}
+    """Route based on Stress Tester's verdict."""
+    verdict = state.get("stress_test_verdict") or {}
     issues = verdict.get("issues", [])
     blockers = [i for i in issues if i.get("severity") == "blocker"]
 
@@ -32,34 +32,34 @@ def _after_gevurah(state: OrchestratorState) -> str:
 
 
 def build_planning_subgraph(critic_model: BaseChatModel):
-    """Build the planning phase subgraph with Gevurah adversarial review.
+    """Build the planning phase subgraph with Stress Tester adversarial review.
 
     Flow: architect → gevurah (adversarial) → critic (score + handoff) → loop/exit
 
-    Gevurah attacks the plan first. If blockers exist, architect revises before
-    the critic even scores. Once Gevurah passes, the critic scores and sets
+    Stress Tester attacks the plan first. If blockers exist, architect revises before
+    the critic even scores. Once Stress Tester passes, the critic scores and sets
     handoff_type (plan_approved or plan_revision based on quality threshold).
 
     Args:
-        critic_model: LangChain model for Gevurah and critic (Haiku).
+        critic_model: LangChain model for Stress Tester and critic (Haiku).
 
     Returns:
         Compiled StateGraph (no checkpointer — parent handles that).
     """
     architect_node = build_architect_node()
-    gevurah_node = build_gevurah_node(critic_model)
+    stress_tester_node = build_stress_tester_node(critic_model)
     critic_node = build_critic_node(critic_model, "planning")
 
     graph = StateGraph(OrchestratorState)
 
     graph.add_node("architect", architect_node)
-    graph.add_node("gevurah", gevurah_node)
+    graph.add_node("gevurah", stress_tester_node)
     graph.add_node("critic", critic_node)
 
     graph.add_edge(START, "architect")
     graph.add_edge("architect", "gevurah")
 
-    # Gevurah blockers → loop back to architect; otherwise → critic for scoring
+    # Stress Tester blockers → loop back to architect; otherwise → critic for scoring
     graph.add_conditional_edges(
         "gevurah",
         _after_gevurah,

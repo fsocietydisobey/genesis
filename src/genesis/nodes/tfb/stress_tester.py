@@ -1,10 +1,10 @@
-"""Gevurah (Severity) — adversarial validator that actively tries to break the code.
+"""Stress Tester (Severity) — adversarial validator that actively tries to break the code.
 
-Unlike the passive critic (which scores and gates), Gevurah is an active adversary.
+Unlike the passive critic (which scores and gates), Stress Tester is an active adversary.
 It doesn't ask "is this good enough?" — it asks "how can I break this?"
 
 Produces a structured verdict with categorized issues at blocker/warning/note severity.
-Any blocker forces a rework. Warnings are passed to Tiferet for arbitration.
+Any blocker forces a rework. Warnings are passed to Arbitrator for arbitration.
 """
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -14,9 +14,9 @@ from pydantic import BaseModel, Field
 from genesis.log import get_logger
 from genesis.core.state import OrchestratorState
 
-log = get_logger("node.gevurah")
+log = get_logger("node.stress_tester")
 
-GEVURAH_SYSTEM_PROMPT = """\
+STRESS_TESTER_SYSTEM_PROMPT = """\
 You are an adversarial code reviewer. Your job is to BREAK things, not approve them.
 
 Assume the code is wrong and prove it. Look for:
@@ -38,7 +38,7 @@ If you find nothing wrong, say so — but try hard to find something first.
 
 
 class Issue(BaseModel):
-    """A single issue found by Gevurah."""
+    """A single issue found by Stress Tester."""
 
     description: str = Field(description="What's wrong — be specific")
     file: str = Field(default="", description="File path if applicable")
@@ -48,7 +48,7 @@ class Issue(BaseModel):
     )
 
 
-class GevurahVerdict(BaseModel):
+class StressTestVerdict(BaseModel):
     """Structured verdict from the adversarial validator."""
 
     issues: list[Issue] = Field(default_factory=list, description="All issues found")
@@ -58,7 +58,7 @@ class GevurahVerdict(BaseModel):
     summary: str = Field(description="One-sentence summary of the verdict")
 
 
-def build_gevurah_node(model: BaseChatModel):
+def build_stress_tester_node(model: BaseChatModel):
     """Build an adversarial validator node.
 
     Args:
@@ -67,9 +67,9 @@ def build_gevurah_node(model: BaseChatModel):
     Returns:
         Async node function compatible with LangGraph StateGraph.
     """
-    structured_model = model.with_structured_output(GevurahVerdict)
+    structured_model = model.with_structured_output(StressTestVerdict)
 
-    async def gevurah_node(state: OrchestratorState) -> dict:
+    async def stress_tester_node(state: OrchestratorState) -> dict:
         """Adversarially review the most recent output."""
         task = state.get("task", "")
         history = list(state.get("history", []))
@@ -91,8 +91,8 @@ def build_gevurah_node(model: BaseChatModel):
         else:
             log.info("nothing to review, passing")
             return {
-                "gevurah_verdict": {"issues": [], "recommendation": "pass", "summary": "Nothing to review"},
-                "history": history + ["gevurah: nothing to review, passing"],
+                "stress_test_verdict": {"issues": [], "recommendation": "pass", "summary": "Nothing to review"},
+                "history": history + ["stress_tester: nothing to review, passing"],
             }
 
         prompt = (
@@ -105,12 +105,12 @@ def build_gevurah_node(model: BaseChatModel):
             prompt += f"\n\n## Architecture plan (for scope comparison)\n\n{plan}"
 
         messages = [
-            SystemMessage(content=GEVURAH_SYSTEM_PROMPT),
+            SystemMessage(content=STRESS_TESTER_SYSTEM_PROMPT),
             HumanMessage(content=prompt),
         ]
 
         verdict_raw = await structured_model.ainvoke(messages)
-        assert isinstance(verdict_raw, GevurahVerdict)
+        assert isinstance(verdict_raw, StressTestVerdict)
         verdict = verdict_raw
 
         blockers = [i for i in verdict.issues if i.severity == "blocker"]
@@ -126,7 +126,7 @@ def build_gevurah_node(model: BaseChatModel):
         if blockers:
             handoff = "tests_failing"  # Force rework
         else:
-            handoff = ""  # Let Tiferet decide
+            handoff = ""  # Let Arbitrator decide
 
         verdict_dict = {
             "issues": [i.model_dump() for i in verdict.issues],
@@ -135,14 +135,14 @@ def build_gevurah_node(model: BaseChatModel):
         }
 
         history_entry = (
-            f"gevurah: {verdict.recommendation} — "
+            f"stress_tester: {verdict.recommendation} — "
             f"{len(blockers)} blockers, {len(warnings)} warnings, {len(notes)} notes"
         )
         if verdict.summary:
             history_entry += f" — {verdict.summary}"
 
         result: dict = {
-            "gevurah_verdict": verdict_dict,
+            "stress_test_verdict": verdict_dict,
             "history": history + [history_entry],
         }
         if handoff:
@@ -150,4 +150,4 @@ def build_gevurah_node(model: BaseChatModel):
 
         return result
 
-    return gevurah_node
+    return stress_tester_node

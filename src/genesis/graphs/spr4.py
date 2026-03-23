@@ -1,6 +1,6 @@
-"""Nitzotz parent graph — phase router with hierarchical subgraphs.
+"""SPR-4 parent graph — phase router with hierarchical subgraphs.
 
-Genesis / Nitzotz: The Divine Sparks. A separate graph
+Genesis / SPR-4: Sequential Phase Runner. A separate graph
 entry point that orchestrates four phase subgraphs (research, planning,
 implementation, review) via structured handoffs.
 
@@ -29,7 +29,7 @@ from genesis.subgraphs import (
 )
 from genesis.log import get_logger
 
-log = get_logger("nitzotz")
+log = get_logger("spr4")
 
 # Default max steps per phase
 DEFAULT_MAX_STEPS = {
@@ -48,9 +48,9 @@ async def _load_memory_node(state: OrchestratorState) -> dict:
     memory_context = await get_recent_context(limit=3)
     if memory_context:
         log.info("injected memory context (%d chars)", len(memory_context))
-        history.append("nitzotz: loaded past run context from memory")
+        history.append("spr4: loaded past run context from memory")
     else:
-        history.append("nitzotz: no past run context found")
+        history.append("spr4: no past run context found")
 
     return {
         "memory_context": memory_context,
@@ -67,7 +67,7 @@ async def _load_memory_node(state: OrchestratorState) -> dict:
 async def _phase_router_node(state: OrchestratorState) -> dict:
     """Read handoff_type and route to the next phase.
 
-    This is the hub of the Nitzotz graph. After each phase subgraph returns,
+    This is the hub of the SPR-4 graph. After each phase subgraph returns,
     it reads the handoff_type and decides:
     - Which phase to run next
     - Whether to loop back to the same phase
@@ -198,7 +198,7 @@ async def _save_memory_node(state: OrchestratorState) -> dict:
 
     try:
         await save_run(
-            thread_id="",  # No thread_id in Nitzotz yet — could add later
+            thread_id="",  # No thread_id in SPR-4 yet — could add later
             summary=summary,
             task=task,
             decisions=decisions,
@@ -208,12 +208,12 @@ async def _save_memory_node(state: OrchestratorState) -> dict:
         log.warning("failed to save run memory: %s", e)
 
     return {
-        "history": list(history) + [f"nitzotz: saved run memory (outcome={outcome})"],
+        "history": list(history) + [f"spr4: saved run memory (outcome={outcome})"],
     }
 
 
-async def build_nitzotz_graph(config: OrchestratorConfig):
-    """Build and compile the Nitzotz parent graph with phase subgraphs.
+async def build_spr4_graph(config: OrchestratorConfig):
+    """Build and compile the SPR-4 parent graph with phase subgraphs.
 
     Uses the same persistent checkpointer as Option B. The four phase
     subgraphs are compiled without checkpointers (the parent handles it).
@@ -235,19 +235,19 @@ async def build_nitzotz_graph(config: OrchestratorConfig):
         os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
     ) / "genesis"
     data_dir.mkdir(parents=True, exist_ok=True)
-    db_path = str(data_dir / "nitzotz_checkpoints.db")
+    db_path = str(data_dir / "spr4_checkpoints.db")
 
     conn = await aiosqlite.connect(db_path)
     await conn.execute("PRAGMA journal_mode=WAL")
     checkpointer = AsyncSqliteSaver(conn)
     await checkpointer.setup()
-    log.info("Nitzotz checkpointer ready: %s", db_path)
+    log.info("SPR-4 checkpointer ready: %s", db_path)
 
     # Build the critic/validator model (Haiku — cheap and fast)
     critic_model = get_classify_model(config)
 
     # Build phase subgraphs (no checkpointer — parent handles persistence)
-    # Implementation subgraph gets a separate review_model for cross-model Tiferet arbitration
+    # Implementation subgraph gets a separate review_model for cross-model arbitration
     research_phase = build_research_subgraph(critic_model)
     planning_phase = build_planning_subgraph(critic_model)
     implementation_phase = build_implementation_subgraph(critic_model, review_model=critic_model)
