@@ -1,6 +1,11 @@
 """PID lock file to prevent multiple server instances.
 
-On startup, checks if another instance is running. If so, kills it.
+On startup, checks if another instance is running. If so, kills it — UNLESS
+that instance is one of our own ancestors (a parent chimera that spawned a
+claude/gemini CLI which transitively spawned us as a grandchild MCP). Killing
+an ancestor is the "circular MCP" footgun — see runners.py `--bare` for the
+prevention side; this is the lock-side guard.
+
 Writes current PID to the lock file. Cleans up on exit.
 """
 
@@ -20,21 +25,60 @@ def _lock_path(name: str) -> Path:
     return run_dir / f"chimera-{name}.pid"
 
 
+def _is_ancestor_of_self(pid: int) -> bool:
+    """Walk /proc to determine if `pid` is an ancestor of the current process.
+
+    Returns False on non-Linux systems or if /proc reads fail. The check
+    is best-effort — callers must stay correct when it returns False, so
+    this only ever DECREASES the chance of killing a parent.
+    """
+    current = os.getpid()
+    seen: set[int] = set()
+    while current > 1 and current not in seen:
+        seen.add(current)
+        try:
+            with open(f"/proc/{current}/status") as f:
+                for line in f:
+                    if line.startswith("PPid:"):
+                        ppid = int(line.split()[1])
+                        if ppid == pid:
+                            return True
+                        current = ppid
+                        break
+                else:
+                    return False
+        except (FileNotFoundError, ValueError, PermissionError, OSError):
+            return False
+    return False
+
+
 def acquire_lock(name: str) -> None:
-    """Acquire a PID lock, killing any previous instance.
+    """Acquire a PID lock, killing any previous instance unless it's an ancestor.
 
     Args:
         name: Server name ("cli" or "graph").
     """
     lock = _lock_path(name)
 
-    # Kill previous instance if lock file exists
+    # Kill previous instance if lock file exists and it isn't an ancestor
     if lock.exists():
         try:
             old_pid = int(lock.read_text().strip())
-            # Check if process is alive
+            # Check if process is alive (raises ProcessLookupError if dead)
             os.kill(old_pid, 0)
-            # It's alive — kill just this process, NOT the process group
+
+            if _is_ancestor_of_self(old_pid):
+                # We're a transitive child of the lock holder — likely spawned
+                # by a CLI subprocess (claude/gemini) that re-loaded chimera
+                # from ~/.claude.json despite --bare. Don't kill the parent.
+                # Run detached without claiming the lock; we have our own stdio.
+                log.info(
+                    "lock held by ancestor (PID %d) — running detached, not claiming lock",
+                    old_pid,
+                )
+                return
+
+            # Not an ancestor — kill just this process, NOT the process group
             # (process group kill would take out Cursor's Extension Host)
             log.warning("killing previous %s server (PID %d)", name, old_pid)
             os.kill(old_pid, signal.SIGKILL)

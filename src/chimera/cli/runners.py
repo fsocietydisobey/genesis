@@ -3,10 +3,9 @@
 import json
 from typing import TYPE_CHECKING
 
-from chimera.log import get_logger
-from chimera.cli import config
+from chimera.cli import config, state
 from chimera.cli.cli import cli_available, run_cli
-from chimera.cli import state
+from chimera.log import get_logger
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import Context
@@ -14,9 +13,7 @@ if TYPE_CHECKING:
 log = get_logger("runners")
 
 
-async def run_gemini(
-    prompt: str, timeout: int | None = None, ctx: "Context | None" = None
-) -> str:
+async def run_gemini(prompt: str, timeout: int | None = None, ctx: "Context | None" = None) -> str:
     """Run a prompt through Gemini CLI, continuing the session if one exists."""
     if not cli_available(config.GEMINI_CMD):
         return f"Error: Gemini CLI not found at `{config.GEMINI_CMD}`. Install with: npm install -g @google/gemini-cli"
@@ -52,7 +49,9 @@ async def run_gemini(
 
 
 async def run_claude(
-    prompt: str, timeout: int | None = None, ctx: "Context | None" = None,
+    prompt: str,
+    timeout: int | None = None,
+    ctx: "Context | None" = None,
     permission_mode: str | None = None,
 ) -> str:
     """Run a prompt through Claude Code CLI, continuing the session if one exists.
@@ -67,8 +66,22 @@ async def run_claude(
     if not cli_available(config.CLAUDE_CMD):
         return f"Error: Claude CLI not found at `{config.CLAUDE_CMD}`. Set CLAUDE_CMD env var or install Claude Code."
 
-    cmd = [config.CLAUDE_CMD, "--model", config.CLAUDE_MODEL, "--effort", "medium",
-           "-p", prompt, "--output-format", "json"]
+    # --bare strips MCP auto-discovery, hooks, plugins, CLAUDE.md auto-load.
+    # Critical: prevents the spawned claude from re-loading chimera's own MCP
+    # entry from ~/.claude.json, which would spawn a child chimera that grabs
+    # the pidlock and kills its parent. See pidlock.py for the lock-side guard.
+    cmd = [
+        config.CLAUDE_CMD,
+        "--bare",
+        "--model",
+        config.CLAUDE_MODEL,
+        "--effort",
+        "medium",
+        "-p",
+        prompt,
+        "--output-format",
+        "json",
+    ]
     if permission_mode:
         cmd.extend(["--permission-mode", permission_mode])
     if state.claude_session_id:
