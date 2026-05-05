@@ -28,6 +28,8 @@ build-backend = "hatchling.build"
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"
 
 [tool.ruff]
 line-length = 120

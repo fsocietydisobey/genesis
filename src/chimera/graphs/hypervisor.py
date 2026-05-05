@@ -31,7 +31,9 @@ async def _init_node(state: OrchestratorState) -> dict:
     """Initialize HVD — set up budget and directives."""
     history = list(state.get("history", []))
     budget = GlobalBudget(
-        max_daily_cost_usd=state.get("global_budget", {}).get("max_daily_cost_usd", 10.0),
+        max_daily_cost_usd=state.get("global_budget", {}).get(
+            "max_daily_cost_usd", 10.0
+        ),
     )
 
     return {
@@ -73,7 +75,11 @@ async def _execute_pattern_node(state: OrchestratorState) -> dict:
     # Future: spawn the actual CLR/PDE/SPR-4 graph as a background job
     prompt = build_prompt(
         "You are a senior software engineer. Execute this task precisely.",
-        f"## Task\n\n{task_desc}" if task_desc else "## Task\n\nImprove the codebase based on health assessment.",
+        (
+            f"## Task\n\n{task_desc}"
+            if task_desc
+            else "## Task\n\nImprove the codebase based on health assessment."
+        ),
         f"## Pattern: {pattern}",
     )
 
@@ -99,7 +105,10 @@ async def _directive_check_node(state: OrchestratorState) -> dict:
 
     # Get the diff
     proc = await asyncio.create_subprocess_exec(
-        "git", "diff", "HEAD~1", "HEAD",
+        "git",
+        "diff",
+        "HEAD~1",
+        "HEAD",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -109,7 +118,8 @@ async def _directive_check_node(state: OrchestratorState) -> dict:
     if not diff.strip():
         return {
             "directive_result": {"passed": True, "violations": []},
-            "history": history + [f"directive_check(cycle {cycle}): no changes to check"],
+            "history": history
+            + [f"directive_check(cycle {cycle}): no changes to check"],
         }
 
     result = check_directives(diff)
@@ -117,8 +127,12 @@ async def _directive_check_node(state: OrchestratorState) -> dict:
     result_dict = {
         "passed": result.passed,
         "violations": [
-            {"directive": v.directive, "description": v.description,
-             "severity": v.severity, "file": v.file}
+            {
+                "directive": v.directive,
+                "description": v.description,
+                "severity": v.severity,
+                "file": v.file,
+            }
             for v in result.violations
         ],
     }
@@ -129,7 +143,8 @@ async def _directive_check_node(state: OrchestratorState) -> dict:
         await git_revert()
         return {
             "directive_result": result_dict,
-            "history": history + [
+            "history": history
+            + [
                 f"directive_check(cycle {cycle}): VIOLATION — "
                 + "; ".join(f"{v.severity}: {v.description}" for v in result.violations)
                 + " — changes reverted"
@@ -181,9 +196,10 @@ async def build_hypervisor_graph(config: OrchestratorConfig):
     import aiosqlite
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
-    data_dir = Path(
-        os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
-    ) / "chimera"
+    data_dir = (
+        Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+        / "chimera"
+    )
     data_dir.mkdir(parents=True, exist_ok=True)
     db_path = str(data_dir / "hvd_checkpoints.db")
 
@@ -208,9 +224,13 @@ async def build_hypervisor_graph(config: OrchestratorConfig):
     graph.add_edge(START, "init")
     graph.add_edge("init", "assess")
     graph.add_edge("assess", "dispatch")
-    graph.add_conditional_edges("dispatch", _after_dispatch, {"execute_pattern": "execute_pattern", END: END})
+    graph.add_conditional_edges(
+        "dispatch", _after_dispatch, {"execute_pattern": "execute_pattern", END: END}
+    )
     graph.add_edge("execute_pattern", "directive_check")
-    graph.add_conditional_edges("directive_check", _after_directive, {"assess": "assess", END: END})
+    graph.add_conditional_edges(
+        "directive_check", _after_directive, {"assess": "assess", END: END}
+    )
 
     compiled = graph.compile(checkpointer=checkpointer)
     return compiled, checkpointer
