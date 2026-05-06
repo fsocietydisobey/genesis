@@ -7,8 +7,8 @@ import subprocess
 import time
 from typing import TYPE_CHECKING
 
-from chimera.log import get_logger
 from chimera.cli import config
+from chimera.log import get_logger
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import Context
@@ -32,6 +32,7 @@ def cli_available(cmd: str) -> bool:
 def kill_all_subprocesses():
     """Kill all tracked subprocesses. Called on server shutdown."""
     import signal
+
     for pid in list(_active_pids):
         try:
             os.kill(pid, signal.SIGKILL)
@@ -67,6 +68,7 @@ async def run_cli(
     timeout: int | None = None,
     ctx: "Context | None" = None,
     label: str = "",
+    cwd: str | None = None,
 ) -> str:
     """Run a CLI command as a subprocess and return stdout.
 
@@ -79,6 +81,9 @@ async def run_cli(
         timeout: Max seconds to wait before killing the process.
         ctx: Optional MCP context for sending progress heartbeats.
         label: Optional label for progress messages.
+        cwd: Working directory for the subprocess. Defaults to
+            config.PROJECT_ROOT (which is itself resolved from PROJECT_ROOT
+            env var → PWD env var → os.getcwd()).
 
     Returns:
         The process stdout as a string.
@@ -90,6 +95,8 @@ async def run_cli(
     if timeout is None:
         timeout = config.CLI_TIMEOUT
 
+    effective_cwd = cwd or config.PROJECT_ROOT
+
     # Input validation — reject excessively large commands
     total_len = sum(len(arg) for arg in cmd)
     if total_len > 500_000:
@@ -97,14 +104,12 @@ async def run_cli(
 
     cmd_short = " ".join(cmd[:3])
     progress_label = label or cmd_short
-    log.info("running: %s (timeout=%ds)", cmd_short, timeout)
+    log.info("running: %s (cwd=%s, timeout=%ds)", cmd_short, effective_cwd, timeout)
     t0 = time.monotonic()
 
     # Run subprocess in a thread — does NOT block the event loop
     try:
-        stdout, stderr, returncode = await asyncio.to_thread(
-            _run_subprocess, cmd, timeout, config.PROJECT_ROOT
-        )
+        stdout, stderr, returncode = await asyncio.to_thread(_run_subprocess, cmd, timeout, effective_cwd)
     except TimeoutError:
         elapsed = time.monotonic() - t0
         log.error("timeout after %.1fs: %s", elapsed, cmd_short)
@@ -120,9 +125,7 @@ async def run_cli(
     if returncode != 0:
         err = stderr.decode().strip()
         log.error("failed (code=%d, %.1fs): %s — %s", returncode, elapsed, cmd_short, err[:200])
-        raise RuntimeError(
-            f"CLI exited with code {returncode}: {err or '(no stderr)'}"
-        )
+        raise RuntimeError(f"CLI exited with code {returncode}: {err or '(no stderr)'}")
 
     log.info("completed in %.1fs (%d chars): %s", elapsed, len(output), cmd_short)
     return output

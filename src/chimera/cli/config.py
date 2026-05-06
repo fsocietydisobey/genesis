@@ -2,8 +2,13 @@
 
 import os
 
-# Project root defaults to cwd; override with PROJECT_ROOT env var
-PROJECT_ROOT = os.environ.get("PROJECT_ROOT", os.getcwd())
+# Project root resolution:
+#   1. PROJECT_ROOT env var (explicit override)
+#   2. PWD env var (preserved across `uv --directory` chdir; this is the
+#      cwd of whoever launched chimera — typically the calling Claude Code
+#      session's project directory)
+#   3. os.getcwd() (chimera's own dir if launched via `uv --directory`)
+PROJECT_ROOT = os.environ.get("PROJECT_ROOT") or os.environ.get("PWD") or os.getcwd()
 
 # Subprocess timeout in seconds (5 minutes default — heartbeats keep MCP alive)
 CLI_TIMEOUT = int(os.environ.get("CLI_TIMEOUT", "300"))

@@ -13,8 +13,21 @@ if TYPE_CHECKING:
 log = get_logger("runners")
 
 
-async def run_gemini(prompt: str, timeout: int | None = None, ctx: "Context | None" = None) -> str:
-    """Run a prompt through Gemini CLI, continuing the session if one exists."""
+async def run_gemini(
+    prompt: str,
+    timeout: int | None = None,
+    ctx: "Context | None" = None,
+    cwd: str | None = None,
+) -> str:
+    """Run a prompt through Gemini CLI, continuing the session if one exists.
+
+    Args:
+        prompt: The prompt to send.
+        timeout: Max seconds to wait.
+        ctx: Optional MCP context for heartbeats.
+        cwd: Working directory for the spawned subprocess. Defaults to
+            chimera's resolved PROJECT_ROOT.
+    """
     if not cli_available(config.GEMINI_CMD):
         return f"Error: Gemini CLI not found at `{config.GEMINI_CMD}`. Install with: npm install -g @google/gemini-cli"
 
@@ -25,7 +38,7 @@ async def run_gemini(prompt: str, timeout: int | None = None, ctx: "Context | No
     log.info("gemini: sending prompt (%d chars), session=%s", len(prompt), state.gemini_session_id or "new")
 
     try:
-        raw = await run_cli(cmd, timeout=timeout, ctx=ctx, label="gemini")
+        raw = await run_cli(cmd, timeout=timeout, ctx=ctx, label="gemini", cwd=cwd)
     except (TimeoutError, RuntimeError) as e:
         log.error("gemini: %s", e)
         return f"Error: {e}"
@@ -52,7 +65,8 @@ async def run_claude(
     prompt: str,
     timeout: int | None = None,
     ctx: "Context | None" = None,
-    permission_mode: str | None = None,
+    permission_mode: str | None = "acceptEdits",
+    cwd: str | None = None,
 ) -> str:
     """Run a prompt through Claude Code CLI, continuing the session if one exists.
 
@@ -60,19 +74,27 @@ async def run_claude(
         prompt: The prompt to send.
         timeout: Max seconds to wait.
         ctx: Optional MCP context for heartbeats.
-        permission_mode: Claude permission mode. None = default (prompts for permissions).
-            "acceptEdits" = auto-accept file writes (for implement node).
+        permission_mode: Claude permission mode. Default "acceptEdits" auto-accepts
+            file writes — chimera is a personal tool, the user trusts it. Pass
+            "bypassPermissions" for chains that also need shell access, or None
+            to fall back to claude's interactive default.
+        cwd: Working directory for the spawned subprocess. Defaults to chimera's
+            resolved PROJECT_ROOT.
     """
     if not cli_available(config.CLAUDE_CMD):
         return f"Error: Claude CLI not found at `{config.CLAUDE_CMD}`. Set CLAUDE_CMD env var or install Claude Code."
 
-    # --bare strips MCP auto-discovery, hooks, plugins, CLAUDE.md auto-load.
-    # Critical: prevents the spawned claude from re-loading chimera's own MCP
-    # entry from ~/.claude.json, which would spawn a child chimera that grabs
-    # the pidlock and kills its parent. See pidlock.py for the lock-side guard.
+    # --strict-mcp-config + empty --mcp-config prevents the spawned claude from
+    # loading chimera's own MCP entry from ~/.claude.json — which would spawn a
+    # child chimera that grabs the pidlock and kills its parent. Less aggressive
+    # than --bare; preserves file-write permissions, hooks, and CLAUDE.md
+    # auto-discovery, all of which the architect/implement prompts depend on.
+    # See pidlock.py for the lock-side guard (defense-in-depth).
     cmd = [
         config.CLAUDE_CMD,
-        "--bare",
+        "--strict-mcp-config",
+        "--mcp-config",
+        '{"mcpServers":{}}',
         "--model",
         config.CLAUDE_MODEL,
         "--effort",
@@ -90,7 +112,7 @@ async def run_claude(
     log.info("claude: sending prompt (%d chars), session=%s", len(prompt), state.claude_session_id or "new")
 
     try:
-        raw = await run_cli(cmd, timeout=timeout, ctx=ctx, label="claude")
+        raw = await run_cli(cmd, timeout=timeout, ctx=ctx, label="claude", cwd=cwd)
     except (TimeoutError, RuntimeError) as e:
         log.error("claude: %s", e)
         return f"Error: {e}"

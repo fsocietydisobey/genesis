@@ -13,7 +13,17 @@ without ambiguity.
 
 ## Output
 
-Create a task folder `tasks/<task-slug>/` in the project root, where
+**Length / format constraints in the user prompt override the defaults below.**
+If the user says "≤500 words" or "ranked table only" — comply, and skip file
+creation. The detail described below is the default for an unconstrained ask.
+
+Create a task folder in the project root. Pick the first path that matches
+the project's conventions:
+
+1. `shared-docs/<user>/todo/<task-slug>/` — if `shared-docs/` exists with a
+   per-user `todo/` subfolder (jeevy_portal convention).
+2. `tasks/<task-slug>/` — fallback default.
+
 `<task-slug>` is a short kebab-case name derived from the task (e.g.,
 "health-check-endpoint", "add-rate-limiting"). Write TWO files inside it:
 

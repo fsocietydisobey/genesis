@@ -10,8 +10,6 @@ import asyncio
 import time
 from pathlib import Path
 
-import anyio
-
 from dotenv import load_dotenv
 from langgraph.types import Command
 from mcp.server.fastmcp import FastMCP
@@ -22,18 +20,18 @@ load_dotenv(_project_root / ".env")
 
 from chimera.cli.prompts import build_prompt
 from chimera.cli.runners import run_claude, run_gemini
-from chimera.config import load_config, Router
-from chimera.graphs.pipeline import build_pipeline_graph
-from chimera.graphs.swarm import build_swarm_graph
-from chimera.graphs.hypervisor import build_hypervisor_graph
-from chimera.graphs.supervisor import build_orchestrator_graph
-from chimera.graphs.refiner import build_refiner_graph
+from chimera.config import Router, load_config
 from chimera.graphs.components import build_components_graph
 from chimera.graphs.deadcode import build_deadcode_graph
+from chimera.graphs.hypervisor import build_hypervisor_graph
+from chimera.graphs.pipeline import build_pipeline_graph
+from chimera.graphs.refiner import build_refiner_graph
+from chimera.graphs.supervisor import build_orchestrator_graph
+from chimera.graphs.swarm import build_swarm_graph
 from chimera.graphs.toolbuilder import build_toolbuilder_graph
-from chimera.server.jobs import Job, create_job, format_job_status, get_job, list_jobs, notify_job_update
 from chimera.log import get_logger, setup_logging
 from chimera.prompts import ARCHITECT_SYSTEM_PROMPT, RESEARCH_SYSTEM_PROMPT
+from chimera.server.jobs import create_job, format_job_status, get_job, list_jobs, notify_job_update
 
 log = get_logger("graph-server")
 
@@ -154,30 +152,39 @@ async def health() -> str:
 
 
 @mcp.tool()
-async def research(question: str, context: str = "") -> str:
+async def research(question: str, context: str = "", cwd: str = "") -> str:
     """Deep research using Gemini CLI. Use for domain exploration, technology
     investigation, or understanding unknowns before planning.
 
     Args:
         question: What you want to research.
         context: Optional context — file contents, prior findings, etc.
+        cwd: Optional project directory the spawned Gemini should run from.
+            Defaults to chimera's resolved PROJECT_ROOT (which prefers the
+            calling shell's PWD).
     """
     prompt = build_prompt(
         RESEARCH_SYSTEM_PROMPT,
         question,
         f"## Context\n\n{context}" if context else "",
     )
-    return await run_gemini(prompt)
+    return await run_gemini(prompt, cwd=cwd or None)
 
 
 @mcp.tool()
-async def architect(goal: str, context: str = "", constraints: str = "") -> str:
+async def architect(goal: str, context: str = "", constraints: str = "", cwd: str = "") -> str:
     """Design an implementation plan using Claude Code CLI.
+
+    Writes `tasks/<slug>/IMPLEMENTATION.md` and `tasks/<slug>/TODO.md` into
+    the target project directory and returns a short pointer.
 
     Args:
         goal: What you want to build or change.
         context: Optional context — relevant code, file contents, prior research.
         constraints: Optional constraints — tech stack, patterns to follow, etc.
+        cwd: Optional project directory the spawned Claude should run from.
+            Defaults to chimera's resolved PROJECT_ROOT (which prefers the
+            calling shell's PWD).
     """
     prompt = build_prompt(
         ARCHITECT_SYSTEM_PROMPT,
@@ -185,7 +192,7 @@ async def architect(goal: str, context: str = "", constraints: str = "") -> str:
         f"## Context\n\n{context}" if context else "",
         f"## Constraints\n\n{constraints}" if constraints else "",
     )
-    return await run_claude(prompt)
+    return await run_claude(prompt, cwd=cwd or None)
 
 
 @mcp.tool()
@@ -202,11 +209,7 @@ async def classify(task_description: str) -> str:
     reasoning = result.get("reasoning", "")
     pipeline = " → ".join(result.get("pipeline", []))
 
-    return (
-        f"**Tier:** {tier} (confidence: {confidence:.0%})\n"
-        f"**Pipeline:** {pipeline}\n"
-        f"**Reasoning:** {reasoning}"
-    )
+    return f"**Tier:** {tier} (confidence: {confidence:.0%})\n**Pipeline:** {pipeline}\n**Reasoning:** {reasoning}"
 
 
 @mcp.tool()
@@ -239,9 +242,7 @@ async def chain(task_description: str, context: str = "", thread_id: str = "") -
     async def _run():
         try:
             node_start = time.time()
-            async for update in graph.astream(
-                initial_state, config=graph_config, stream_mode="updates"
-            ):
+            async for update in graph.astream(initial_state, config=graph_config, stream_mode="updates"):
                 if update is None:
                     continue
                 for node_name, state_update in update.items():
@@ -281,7 +282,7 @@ async def chain(task_description: str, context: str = "", thread_id: str = "") -
     return (
         f"**Job started:** `{job.job_id}`\n"
         f"**Thread:** `{job.thread_id}`\n\n"
-        f"Use `status(job_id=\"{job.job_id}\")` to check progress.\n\n"
+        f'Use `status(job_id="{job.job_id}")` to check progress.\n\n'
         f"The pipeline will pause for your approval before implementing."
     )
 
@@ -318,9 +319,7 @@ async def chain_pipeline(task_description: str, context: str = "", thread_id: st
     async def _run():
         try:
             node_start = time.time()
-            async for update in graph.astream(
-                initial_state, config=graph_config, stream_mode="updates"
-            ):
+            async for update in graph.astream(initial_state, config=graph_config, stream_mode="updates"):
                 if update is None:
                     continue
                 for node_name, state_update in update.items():
@@ -365,7 +364,7 @@ async def chain_pipeline(task_description: str, context: str = "", thread_id: st
         f"**SPR-4 Job started:** `{job.job_id}`\n"
         f"**Thread:** `{job.thread_id}`\n\n"
         f"Phases: research → planning → implementation → review\n"
-        f"Use `status(job_id=\"{job.job_id}\")` to check progress.\n\n"
+        f'Use `status(job_id="{job.job_id}")` to check progress.\n\n'
         f"The pipeline will pause for your approval in the review phase."
     )
 
@@ -391,9 +390,7 @@ async def chain_refiner(max_cycles: int = 50, budget: float = 5.0) -> str:
 
     async def _run():
         try:
-            async for update in graph.astream(
-                initial_state, config=graph_config, stream_mode="updates"
-            ):
+            async for update in graph.astream(initial_state, config=graph_config, stream_mode="updates"):
                 if update is None:
                     continue
                 for node_name, state_update in update.items():
@@ -419,7 +416,7 @@ async def chain_refiner(max_cycles: int = 50, budget: float = 5.0) -> str:
     return (
         f"**CLR (refinement loop) started:** `{job.job_id}`\n"
         f"**Max cycles:** {max_cycles} | **Budget:** ${budget:.2f}\n\n"
-        f"Use `status(job_id=\"{job.job_id}\")` to check progress."
+        f'Use `status(job_id="{job.job_id}")` to check progress.'
     )
 
 
@@ -449,9 +446,7 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
 
     async def _run():
         try:
-            async for update in graph.astream(
-                initial_state, config=graph_config, stream_mode="updates"
-            ):
+            async for update in graph.astream(initial_state, config=graph_config, stream_mode="updates"):
                 if update is None:
                     continue
                 for node_name, state_update in update.items():
@@ -484,7 +479,7 @@ async def swarm(goal: str, budget: float = 2.0, max_agents: int = 10) -> str:
         f"**PDE (parallel dispatch) started:** `{job.job_id}`\n"
         f"**Goal:** {goal}\n"
         f"**Max agents:** {max_agents} | **Budget:** ${budget:.2f}\n\n"
-        f"Use `status(job_id=\"{job.job_id}\")` to check progress."
+        f'Use `status(job_id="{job.job_id}")` to check progress.'
     )
 
 
@@ -511,9 +506,7 @@ async def chain_hypervisor(budget: float = 10.0) -> str:
 
     async def _run():
         try:
-            async for update in graph.astream(
-                initial_state, config=graph_config, stream_mode="updates"
-            ):
+            async for update in graph.astream(initial_state, config=graph_config, stream_mode="updates"):
                 if update is None:
                     continue
                 for node_name, state_update in update.items():
@@ -542,7 +535,7 @@ async def chain_hypervisor(budget: float = 10.0) -> str:
         f"**HVD (meta-orchestrator) started:** `{job.job_id}`\n"
         f"**Daily budget:** ${budget:.2f}\n\n"
         f"HVD will assess, dispatch, and manage patterns autonomously.\n"
-        f"Use `status(job_id=\"{job.job_id}\")` to check progress."
+        f'Use `status(job_id="{job.job_id}")` to check progress.'
     )
 
 
@@ -564,9 +557,7 @@ async def chain_components() -> str:
 
     async def _run():
         try:
-            async for update in graph.astream(
-                initial_state, config=graph_config, stream_mode="updates"
-            ):
+            async for update in graph.astream(initial_state, config=graph_config, stream_mode="updates"):
                 if update is None:
                     continue
                 for node_name, state_update in update.items():
@@ -590,7 +581,7 @@ async def chain_components() -> str:
     return (
         f"**ACL (component library) started:** `{job.job_id}`\n\n"
         f"Validates atomic components: scan → validate → enforce.\n"
-        f"Use `status(job_id=\"{job.job_id}\")` to check progress."
+        f'Use `status(job_id="{job.job_id}")` to check progress.'
     )
 
 
@@ -613,9 +604,7 @@ async def chain_deadcode() -> str:
 
     async def _run():
         try:
-            async for update in graph.astream(
-                initial_state, config=graph_config, stream_mode="updates"
-            ):
+            async for update in graph.astream(initial_state, config=graph_config, stream_mode="updates"):
                 if update is None:
                     continue
                 for node_name, state_update in update.items():
@@ -639,7 +628,7 @@ async def chain_deadcode() -> str:
     return (
         f"**DCE (dead code eliminator) started:** `{job.job_id}`\n\n"
         f"Operates in shadow worktree: seek → shatter → reap → merge.\n"
-        f"Use `status(job_id=\"{job.job_id}\")` to check progress."
+        f'Use `status(job_id="{job.job_id}")` to check progress.'
     )
 
 
@@ -662,9 +651,7 @@ async def chain_toolbuilder() -> str:
 
     async def _run():
         try:
-            async for update in graph.astream(
-                initial_state, config=graph_config, stream_mode="updates"
-            ):
+            async for update in graph.astream(initial_state, config=graph_config, stream_mode="updates"):
                 if update is None:
                     continue
                 for node_name, state_update in update.items():
@@ -688,7 +675,7 @@ async def chain_toolbuilder() -> str:
     return (
         f"**POB (proactive tool-builder) started:** `{job.job_id}`\n\n"
         f"Observes behavior → identifies friction → builds tool → opens PR.\n"
-        f"Use `status(job_id=\"{job.job_id}\")` to check progress."
+        f'Use `status(job_id="{job.job_id}")` to check progress.'
     )
 
 
@@ -788,10 +775,7 @@ async def approve(job_id: str, feedback: str = "") -> str:
     job._task = asyncio.create_task(_run_resume())
 
     decision = "rejected" if feedback else "approved"
-    return (
-        f"**Job resumed:** `{job_id}` ({decision})\n\n"
-        f"Use `status(job_id=\"{job_id}\")` to check progress."
-    )
+    return f'**Job resumed:** `{job_id}` ({decision})\n\nUse `status(job_id="{job_id}")` to check progress.'
 
 
 @mcp.tool()
@@ -816,8 +800,7 @@ async def history(thread_id: str, limit: int = 10) -> str:
         source = metadata.get("source", "?")
 
         values = snapshot.values or {}
-        has = [k for k in ["research_findings", "architecture_plan",
-                           "implementation_result"] if values.get(k)]
+        has = [k for k in ["research_findings", "architecture_plan", "implementation_result"] if values.get(k)]
 
         entry = (
             f"### Step {step} (`{checkpoint_id[:12]}...`)\n"
@@ -1001,11 +984,9 @@ def _format_graph_result(state: dict) -> str:
     history_list = state.get("history") or []
     node_calls = state.get("node_calls") or {}
     if history_list:
-        journey = "\n".join(f"{i+1}. {h}" for i, h in enumerate(history_list))
+        journey = "\n".join(f"{i + 1}. {h}" for i, h in enumerate(history_list))
         calls = ", ".join(f"{k}: {v}" for k, v in sorted(node_calls.items()))
-        output_parts.append(
-            f"## Supervisor Journey\n\n{journey}\n\n**Node calls:** {calls}"
-        )
+        output_parts.append(f"## Supervisor Journey\n\n{journey}\n\n**Node calls:** {calls}")
 
     review_status = state.get("human_review_status", "")
     if review_status:
@@ -1046,10 +1027,14 @@ async def _cleanup():
     global _checkpointer, _pipeline_checkpointer, _refiner_checkpointer, _swarm_checkpointer, _hypervisor_checkpointer
     global _components_checkpointer, _deadcode_checkpointer, _toolbuilder_checkpointer
     for name, cp in [
-        ("supervisor", _checkpointer), ("spr4", _pipeline_checkpointer),
-        ("clr", _refiner_checkpointer), ("pde", _swarm_checkpointer),
-        ("hvd", _hypervisor_checkpointer), ("acl", _components_checkpointer),
-        ("dce", _deadcode_checkpointer), ("pob", _toolbuilder_checkpointer),
+        ("supervisor", _checkpointer),
+        ("spr4", _pipeline_checkpointer),
+        ("clr", _refiner_checkpointer),
+        ("pde", _swarm_checkpointer),
+        ("hvd", _hypervisor_checkpointer),
+        ("acl", _components_checkpointer),
+        ("dce", _deadcode_checkpointer),
+        ("pob", _toolbuilder_checkpointer),
     ]:
         if cp is not None:
             try:
@@ -1070,6 +1055,7 @@ async def _cleanup():
 def main():
     """Entry point — run the MCP server over stdio."""
     import atexit
+
     from chimera.cli.cli import kill_all_subprocesses
     from chimera.pidlock import acquire_lock
 

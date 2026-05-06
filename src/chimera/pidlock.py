@@ -14,6 +14,8 @@ import os
 import signal
 from pathlib import Path
 
+import psutil
+
 from .log import get_logger
 
 log = get_logger("pidlock")
@@ -26,30 +28,16 @@ def _lock_path(name: str) -> Path:
 
 
 def _is_ancestor_of_self(pid: int) -> bool:
-    """Walk /proc to determine if `pid` is an ancestor of the current process.
+    """Return True if `pid` is an ancestor of the current process.
 
-    Returns False on non-Linux systems or if /proc reads fail. The check
-    is best-effort — callers must stay correct when it returns False, so
-    this only ever DECREASES the chance of killing a parent.
+    Cross-platform via psutil. Returns False on any error (dead process,
+    permission denied, etc.) — callers must remain correct in that case,
+    so a False return only DECREASES the chance of killing a parent.
     """
-    current = os.getpid()
-    seen: set[int] = set()
-    while current > 1 and current not in seen:
-        seen.add(current)
-        try:
-            with open(f"/proc/{current}/status") as f:
-                for line in f:
-                    if line.startswith("PPid:"):
-                        ppid = int(line.split()[1])
-                        if ppid == pid:
-                            return True
-                        current = ppid
-                        break
-                else:
-                    return False
-        except (FileNotFoundError, ValueError, PermissionError, OSError):
-            return False
-    return False
+    try:
+        return any(p.pid == pid for p in psutil.Process().parents())
+    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error, OSError):
+        return False
 
 
 def acquire_lock(name: str) -> None:
