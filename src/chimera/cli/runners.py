@@ -31,7 +31,18 @@ async def run_gemini(
     if not cli_available(config.GEMINI_CMD):
         return f"Error: Gemini CLI not found at `{config.GEMINI_CMD}`. Install with: npm install -g @google/gemini-cli"
 
-    cmd = [config.GEMINI_CMD, "-m", config.GEMINI_MODEL, "-p", prompt, "-o", "json"]
+    # --skip-trust is required for headless use; without it Gemini refuses
+    # to run in any directory not previously trusted in interactive mode.
+    cmd = [
+        config.GEMINI_CMD,
+        "--skip-trust",
+        "-m",
+        config.GEMINI_MODEL,
+        "-p",
+        prompt,
+        "-o",
+        "json",
+    ]
     if state.gemini_session_id:
         cmd.extend(["--resume", state.gemini_session_id])
 
