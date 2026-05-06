@@ -1,6 +1,7 @@
 """Run Gemini and Claude CLI subprocesses with session continuity."""
 
 import json
+import os
 from typing import TYPE_CHECKING
 
 from chimera.cli import config, state
@@ -11,6 +12,19 @@ if TYPE_CHECKING:
     from mcp.server.fastmcp import Context
 
 log = get_logger("runners")
+
+
+def _extra_roots(cwd: str | None) -> list[str]:
+    """Return registered roots minus the primary cwd (which is implicit).
+
+    The cwd is the spawned subprocess's working directory and is already
+    accessible — re-passing it as --add-dir / --include-directories is at
+    best redundant and at worst can confuse the CLI's path resolution.
+    """
+    if not cwd:
+        return list(config.ROOTS)
+    cwd_resolved = os.path.realpath(cwd)
+    return [r for r in config.ROOTS if os.path.realpath(r) != cwd_resolved]
 
 
 async def run_gemini(
@@ -43,6 +57,11 @@ async def run_gemini(
         "-o",
         "json",
     ]
+    # Expand read scope to all registered project roots — gemini takes a
+    # CSV list via a single flag.
+    extras = _extra_roots(cwd)
+    if extras:
+        cmd.extend(["--include-directories", ",".join(extras)])
     if state.gemini_session_id:
         cmd.extend(["--resume", state.gemini_session_id])
 
@@ -117,6 +136,10 @@ async def run_claude(
     ]
     if permission_mode:
         cmd.extend(["--permission-mode", permission_mode])
+    # Expand read scope to all registered project roots — claude takes one
+    # --add-dir flag per directory.
+    for extra in _extra_roots(cwd):
+        cmd.extend(["--add-dir", extra])
     if state.claude_session_id:
         cmd.extend(["--resume", state.claude_session_id])
 
