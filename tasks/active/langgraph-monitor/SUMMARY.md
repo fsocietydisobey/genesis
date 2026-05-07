@@ -1,111 +1,132 @@
-# LangGraph Monitor — Phase 1 Summary
+# LangGraph Monitor — Summary
 
-**Status:** Phase 1 shipped 2026-05-06 → 2026-05-07 (multi-session sprint).
-Phase 2+ items in [TODO.md](./TODO.md) remain.
+**Status:** Phase 1 + most of Phase 2 shipped (2026-05-06 → 2026-05-07).
+Still in `tasks/active/` rather than `tasks/completed/` because Phase 2+
+items remain on the table.
 
-## What shipped
+## What this is
 
 A generic observability dashboard for any LangGraph project. Auto-discovers
-projects from `config.ROOTS`, introspects compiled `StateGraph` topology
-via runtime + AST fallback, tails the checkpointer (Postgres jsonb or
-SQLite blob) for live state, and renders an n8n-style canvas with
-multi-thread replay and per-step diff inspection.
+projects from the chimera roots registry, introspects compiled `StateGraph`
+topology via runtime + AST fallback, tails the checkpointer (Postgres jsonb
+or SQLite blob) for live state, and renders an n8n-style canvas with
+multi-thread replay, per-step diff inspection, and adaptive stuck detection.
 
-Adapts to any LangGraph app — no per-project code required. Optional LLM
-metadata cache (Claude Opus high) enriches displays with project
-vocabulary, scope kinds, thread-id grouping, and run clustering rules.
+Generic across LangGraph apps — no per-project code required. An optional
+LLM metadata cache (Claude Opus high) enriches displays with project
+vocabulary, scope kinds, thread-id grouping, run clustering, and per-app
+running-threshold values. A runtime observation collector mines checkpoint
+history every 5 min and feeds the next refinement scan, so the system gets
+sharper with every refresh.
 
-### Backend (`src/chimera/monitor/`)
+## Phase 1 — shipped 2026-05-06
 
-- FastAPI daemon, `127.0.0.1`-bound, `os.fork` daemonization, PID lock
-- Lazy-imports gated behind `chimera[monitor]` extra
-- Project discovery: scans registered roots for LangGraph factories
-- Connection discovery: parses project `.env` files for Postgres URLs;
-  walks data dirs for SQLite checkpointers
-- Topology: runtime introspection primary; tree-sitter AST walker
-  fallback for projects with dynamic node construction
-- State decoder: msgpack/ormsgpack/jsonb tolerant; column-name redaction
-  applied server-side
-- Metadata scan: Claude Opus reads project source + sample thread_ids,
-  derives node/graph roles, summaries, `thread_grouping` regex, and
-  `run_clustering` rules. Cached on disk; auto-invalidated by source mtime
-- API: `/projects`, `/topology/{name}`, `/threads/{name}`,
-  `/threads/{name}/{thread_id}`
+Foundational dashboard: project discovery, connection discovery (Postgres +
+SQLite), AST-based topology extraction, FastAPI backend on `127.0.0.1:8740`,
+React/Vite frontend with React Flow canvas, RTK Query polling, replay
+scrubber, ghost overlay, NodeInspector, theme toggle. See git history for
+details; covered by tests under `tests/monitor/`.
 
-### Frontend (`monitor_ui/`)
+## Phase 2 — shipped 2026-05-07 (today)
 
-- Vite + React + TS + Tailwind + shadcn/ui + RTK Query
-- React Flow canvas (replaced original Mermaid plan during build —
-  needed n8n-style drag/zoom and cluster backgrounds)
-- Per-graph tabs + "All" view with cross-graph "invokes" edges
-- Replay scrubber: per-thread + multi-thread merged-run mode
-- Ghost overlay: numbered fired-nodes badges in execution order
-- Two draggable cards: ActiveNodeCard (mirrors lit node, large mono),
-  RunStepsCard (clickable chronological step list)
-- NodeInspector: per-visit cards with diff-vs-previous-step toggle
-  (default) and full-state toggle
-- Theme toggle (dark / space-gray)
-- Lock/unlock tab-following (pin to All view or auto-jump)
-- Status counts header, runs sidebar with date dividers + sort modes
+### Status detection — every signal now generic
 
-### CLI
+| Signal | Source | Per-app? |
+|---|---|---|
+| HITL paused | `__interrupt__` channel | LangGraph schema |
+| Just started | `source=input, step≤0` | LangGraph schema |
+| Terminal (writes) | `metadata.writes` contains `__end__` | When LangGraph populates it |
+| Terminal (topology) | AST: only outgoing edges to `__end__` | Per-project, automatic |
+| Project running threshold | Metadata scan (`running_threshold_seconds`) | Per-project, LLM-derived (clamped 60-1800s) |
+| Per-node running threshold | Observation collector p95 × 2 | Adaptive, learns from history |
+| Frontend stale/stuck badges | `running_threshold × {1, 3}` | Scales with backend threshold |
 
-```
-chimera monitor start   # daemonize, auto-build frontend if stale
-chimera monitor stop
-chimera monitor status
-chimera monitor rescan <project>   # refresh metadata cache
-```
+The terminal-via-topology fix was the headline bug — jeevy's LangGraph version
+writes `metadata.writes = null` for every checkpoint, so the writes-based
+`__end__` detection never fired. Threads stayed "running" for 5+ min after
+graph_end. Now they flip to idle the moment they reach a node whose only
+outgoing edge goes to `__end__`.
 
-### Tests (`tests/monitor/`)
+### Auto-follow
 
-10 test modules: AST extraction (entry/end/conditional/for-loop unrolls),
-Unicode-safe byte offsets, state decoder roundtrips, project + connection
-discovery, redaction, metadata schema validation, extras-missing exit
-message, daemon binding assertion, integration smoke.
+- Most-recently-started running thread wins focus (was: most-recently-updated,
+  which favored chatty orchestrator over ingest workers).
+- Stale manual focus releases when a sister thread (same `scope_id`) gets fresh
+  activity — so clicking ingest #17 to inspect doesn't leave the dashboard
+  pinned there after digestion spawns.
+- Lock-mode focused vs sister-thread visually distinct: emerald pulse for
+  focused, sky-blue static ring for sisters.
 
-## Key deviations from original plan
+### Stuck detection
 
-- **Mermaid → React Flow.** Mermaid couldn't deliver the drag/zoom and
-  cluster-grouping UX you wanted. Pivoted to React Flow + dagre layout
-  mid-build. Ghost overlay and step badges only feasible because of this.
-- **Metadata-driven everything.** The original plan didn't include an LLM
-  metadata layer. Added during the session because hardcoded heuristics
-  (thread parsing, run clustering, scope labels) couldn't generalize
-  across LangGraph apps. The scan is the load-bearing piece that makes
-  the dashboard work for projects with very different conventions.
-- **Run-mode replay.** Original plan was per-thread scrubbing only. You
-  asked for "play the whole run start to end" — we built merged-timeline
-  multi-thread replay with sister-thread checkpoint interleaving by
-  timestamp.
-- **Ghost overlay + cards.** Not in the original spec. Emerged from
-  iterating on "I want to see what fired in what order without scrubbing."
+- Frontend staleness classifier flags running threads exceeding `running_threshold`
+  (stale) and `running_threshold × 3` (stuck).
+- Sidebar / live-runs card / project header all show flagged threads with
+  amber/red treatment.
+- "Last checkpoint Ns ago" hint on every focused/lit node — surfaces
+  "marker hasn't moved but seconds keep ticking" so users understand when
+  the next node is running below the checkpointer's resolution.
+
+### Learning loop (the headline Phase 2 work)
+
+Three layers, each cheap on its own:
+
+1. **Observation collector** (no AI) — daemon background task, runs every 5 min.
+   Mines per-(graph, node) duration distributions (p50/p95/max) and
+   empirical end-node frequencies. Persists to a separate cache file so it
+   doesn't race with the LLM scan.
+
+2. **Adaptive per-node thresholds at runtime** (no AI) — when a node has 5+
+   observed visits, threshold becomes `max(p95 × 2, max × 1.2, 30s)` capped
+   at 1h. Falls back to project-wide default for under-observed nodes. So
+   `persist` (jeevy: p95 ~0.1s) gets a tight 30s window while
+   `correspondence_phase1` (p95 = 55min) gets the cap.
+
+3. **Refinement scan** (LLM, periodic) — each rescan now reads:
+   - codebase (unchanged)
+   - previous metadata file (what we decided last time)
+   - observation file (what actually happened)
+   The LLM compares prior reasoning to new evidence and refines. System
+   gets sharper across rescans without extra user effort. Cost: one LLM
+   call per refresh interval, never per-poll.
+
+### Bug fixes that shipped today
+
+- `Send`/`Command` objects in checkpoint state crashed FastAPI's JSON encoder
+  (500s on threads detail). Fixed via `to_jsonable()` sanitizer.
+- chimera's own SQLite checkpoints couldn't decode (msgpack via ormsgpack
+  failed on LangGraph's extension types). Fixed by routing through
+  `JsonPlusSerializer`.
+- Running-threshold of 30s was way too tight for LLM-bearing nodes (jeevy's
+  drawing_extract is 60-180s between writes). Bumped default to 300s and
+  made it per-project metadata.
+- 8 commits worth of cascading UX fixes around auto-follow, multi-thread
+  display, focus-release semantics.
 
 ## Verified against
 
-- **jeevy_portal** (Postgres + Qdrant): 6 graphs enriched, multi-thread
-  runs cluster into "Run abc…" cards correctly, diff view surfaces
-  LangGraph internal `branch:to:*` channel transitions plus user-state
-  changes, replay walks merged 32-step timelines across 3 sister threads
-- **chimera** itself (SQLite): topology renders for the 8 compiled graphs,
-  metadata scan derives `pattern: ([0-9a-f-]{36})$` for trailing-UUID
-  threads
+- **jeevy_portal** (Postgres + Qdrant): 6 graphs enriched, 58 threads
+  mined, observation collector found 37 distinct nodes. Empirical end-nodes
+  (`persist` 17×, `commit` 11×, `output_lane` 11×) cross-validated against
+  AST-derived terminals. `running_threshold_seconds = 900` derived by Claude
+  from the codebase + observations.
+- **chimera** itself (SQLite): topology renders, decoder handles msgpack,
+  metadata scan derives appropriate thread parsing.
 
-## Bookkeeping done
+## Distribution
 
-- `tasks/planned/langgraph-monitor/` → `tasks/active/langgraph-monitor/`
-- README.md updated with monitor as top-level feature
-- 9 commits squashed-conceptually into 4 thematic commits on `main`
+Repo made public at `github.com/fsocietydisobey/chimera`. MIT license. Jeevy
+team can clone + `uv pip install -e '.[monitor]'`. Quickstart in README.
 
-## Phase 2 remaining (deferred to next session)
+## Phase 2 candidates still open (deferred)
 
-See TODO.md. Real candidates flagged during the session:
+See TODO.md. Real candidates:
 
-- Stuck-thread detector (sidebar warning on stale-but-running threads)
-- SSE live updates (currently RTK polling at 2s — works but burns
-  bandwidth on idle dashboards)
-- Conversation playback (chat-UI render for graphs with `messages` channel)
-- Run timeline events (jeevy-style `*_events` table; lower priority)
+- **Conversation playback** (chat-UI render of `messages` channel for chat-style
+  graphs like jeevy's chat_lane subgraph)
+- **SSE upgrade** (replace polling — low priority; polling at 2s feels live)
+- **Run timeline events** (jeevy-specific `*_events` table convention; requires
+  per-project event-source config to stay generic)
 
 Explicitly NOT porting from jeevy: the `/ai-debugger` trace-tree view.
 That's a chronological log paradigm that competes with the canvas-first

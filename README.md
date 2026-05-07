@@ -243,19 +243,52 @@ What you get:
 - **Multi-thread replay** — scrub through checkpoint history per thread, or merge sister threads into one chronological "play this run start to end" timeline
 - **Ghost overlay** — every node that fired in a run, numbered in execution order, with a draggable step-list card that doubles as a navigation index
 - **Per-step diff inspector** — click any node, see what state changed (vs full-state dump)
+- **Stuck-thread detection** — frontend flags running threads exceeding their per-project threshold with stale/stuck badges; thresholds adapt per-node based on observed p95 latencies (the system gets sharper across runs)
 - **Metadata-driven** — Claude Opus scans each project's source + sample thread_ids to derive scope labels, thread parsing, and run clustering rules. No hardcoded conventions
 
-Install the optional extras and start:
+### Try it in 2 minutes (any LangGraph project)
 
 ```bash
-uv pip install 'chimera[monitor]'
-chimera monitor start         # Daemonizes; auto-builds frontend if stale
-chimera monitor rescan <project>   # Refresh metadata cache
-chimera monitor status
-chimera monitor stop
+# 1. Clone + install with monitor extras
+git clone https://github.com/fsocietydisobey/chimera.git
+cd chimera
+uv pip install -e '.[monitor]'
+
+# 2. Tell chimera where to find your LangGraph project(s).
+#    Create ~/.config/chimera/roots.yaml:
+mkdir -p ~/.config/chimera
+cat > ~/.config/chimera/roots.yaml <<EOF
+roots:
+  - /path/to/your/langgraph/project
+  # add more projects as needed
+EOF
+
+# 3. (Optional) Set an API key for the metadata scan — Claude Opus
+#    derives scope labels, thread grouping, run clustering rules.
+#    Without this, the dashboard still works using AST-only topology.
+export ANTHROPIC_API_KEY=sk-ant-...   # or GOOGLE_AI_API_KEY=...
+
+# 4. Start the daemon
+chimera monitor start    # Daemonizes; auto-builds frontend if stale
+                         # Open http://127.0.0.1:8740
+```
+
+### Day-to-day commands
+
+```bash
+chimera monitor status                # Is the daemon up?
+chimera monitor rescan <project>      # Refresh metadata cache for one project
+chimera monitor stop                  # Shutdown
 ```
 
 Default port: **8740** (`CHIMERA_MONITOR_PORT` to override). Binds `127.0.0.1` only — never exposed externally.
+
+### Backends
+
+- **PostgreSQL** (`AsyncPostgresSaver`): URL discovered from the project's `.env` (`CHECKPOINTER_DATABASE_URL`, `POSTGRES_URL`, or `DATABASE_URL`). jsonb columns parsed in-place.
+- **SQLite** (`AsyncSqliteSaver`): `.db` files discovered under the project's data dir (`~/.local/share/<project>/`, `<project>/data/`, etc.). msgpack-encoded blobs decoded via LangGraph's own `JsonPlusSerializer`.
+
+No instrumentation required — chimera-monitor is purely observational.
 
 ---
 
