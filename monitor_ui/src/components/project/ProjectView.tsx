@@ -451,6 +451,7 @@ export function ProjectView() {
                 }
                 totalSteps={runCheckpoints.length > 0 ? runCheckpoints.length : null}
                 inReplay={replayState.index !== null}
+                lastUpdated={focusedThread.last_updated}
               />
               <RunStepsCard
                 visible={ghostMode}

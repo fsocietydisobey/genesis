@@ -15,7 +15,7 @@ import { useListThreadsQuery } from "@/api";
 import { Badge } from "@/components/ui/badge";
 import { deriveLabel } from "@/components/project/RunsSidebar";
 import { StalenessBadge } from "@/components/project/StalenessBadge";
-import { getStaleness, STALENESS_PRIORITY } from "@/lib/staleness";
+import { formatElapsed, getStaleness, STALENESS_PRIORITY } from "@/lib/staleness";
 import { cn } from "@/lib/utils";
 
 const STATUS_DOT: Record<ThreadStatus, string> = {
@@ -255,6 +255,15 @@ function LiveRunRow({
             <span className="font-mono text-foreground/80 truncate">@{thread.current_node}</span>
           ) : null}
           {thread.step != null ? <span>· step {thread.step}</span> : null}
+          {/* Time since last checkpoint — when the marker hasn't moved
+              but seconds keep ticking, the next node is running (we
+              just can't see it from the checkpoint table). */}
+          <span
+            className="ml-auto shrink-0 font-mono"
+            title={`last checkpoint ${formatElapsed(thread.last_updated)} ago`}
+          >
+            {formatElapsed(thread.last_updated)} ago
+          </span>
         </div>
       </button>
     </li>

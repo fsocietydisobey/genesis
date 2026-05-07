@@ -16,6 +16,7 @@ import { GripHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { formatElapsed } from "@/lib/staleness";
 import { cn } from "@/lib/utils";
 
 interface ActiveNodeCardProps {
@@ -28,6 +29,10 @@ interface ActiveNodeCardProps {
   totalSteps: number | null;
   /** True when the canvas is in replay mode (otherwise live). */
   inReplay: boolean;
+  /** ISO of the last checkpoint write. Drives the "Ns ago" hint that
+   *  signals the next node is running even when the marker hasn't
+   *  advanced. Null in replay (where elapsed isn't meaningful). */
+  lastUpdated: string | null;
 }
 
 const STORAGE_KEY = "chimera-monitor-active-node-card-pos";
@@ -53,6 +58,7 @@ export function ActiveNodeCard({
   stepNumber,
   totalSteps,
   inReplay,
+  lastUpdated,
 }: ActiveNodeCardProps) {
   const [pos, setPos] = useState(loadPos);
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
@@ -134,6 +140,14 @@ export function ActiveNodeCard({
             </span>
           ) : null}
         </div>
+        {!inReplay && lastUpdated ? (
+          <div
+            className="mt-1 text-[10px] text-muted-foreground/70 font-mono"
+            title="Time since the last checkpoint write. If this number keeps growing while the node label doesn't move, the next node is running internally — LangGraph just hasn't committed a new checkpoint yet."
+          >
+            last checkpoint {formatElapsed(lastUpdated)} ago
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -64,3 +64,25 @@ export function countStaleness(threads: ThreadSummary[]): Record<Staleness, numb
   }
   return out;
 }
+
+/**
+ * Compact "time since" formatter — "47s", "2m", "1h", "3d". Used to
+ * surface "last checkpoint N seconds ago" next to lit nodes so the
+ * user can tell something is still happening inside the next node
+ * even when the checkpoint marker hasn't advanced.
+ *
+ * Honest about <1s ("now") rather than rounding to 0.
+ */
+export function formatElapsed(iso: string | null, now: number = Date.now()): string {
+  if (!iso) return "—";
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return "—";
+  const secs = Math.max(0, Math.floor((now - t) / 1000));
+  if (secs < 1) return "now";
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
