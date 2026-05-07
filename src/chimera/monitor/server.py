@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import os
+import asyncio
 import sys
 
 from chimera.cli.config import ROOTS
@@ -88,6 +89,34 @@ def build_app():
                 f"(runs in background)",
                 file=sys.stderr,
             )
+
+    # Observation collector — periodically mines each project's checkpoint
+    # history for per-node duration statistics. Output feeds adaptive
+    # stuck-detection thresholds and the periodic LLM refinement scan.
+    # Cadence is intentionally slow (5min) because:
+    #   - Stats stabilize over hours/days, not seconds
+    #   - Each pass walks 200 threads × N checkpoints — non-trivial I/O
+    #   - Saved file is read at request time; no need for sub-minute freshness
+    @app.on_event("startup")
+    async def _start_observation_loop() -> None:
+        from .metadata import observations as obs_module
+
+        async def _loop() -> None:
+            # Initial pass after a short delay so the daemon's first
+            # health checks aren't fighting for DB connections.
+            await asyncio.sleep(20)
+            while True:
+                for p in projects:
+                    try:
+                        await asyncio.to_thread(obs_module.collect, p.path)
+                    except Exception as exc:
+                        print(
+                            f"chimera monitor: observation collection failed for {p.name}: {exc}",
+                            file=sys.stderr,
+                        )
+                await asyncio.sleep(300)  # 5 min between passes
+
+        asyncio.create_task(_loop())
 
     # Static frontend — only mount if dist/ exists; otherwise serve a placeholder
     dist = ui_build.dist_dir()

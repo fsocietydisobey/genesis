@@ -32,7 +32,8 @@ from ..discovery.redaction import redact
 from ..discovery.state_decoder import decode, to_jsonable
 from ..discovery.thread_grouping import parse_grouping
 from ..metadata import cache as meta_cache
-from ..metadata.schema import ProjectMetadata, RunClustering, ThreadGrouping
+from ..metadata import observations as obs_cache
+from ..metadata.schema import ProjectMetadata, RunClustering, RuntimeObservations, ThreadGrouping
 
 # ---------------------------------------------------------------------------
 # Postgres SQL
@@ -149,6 +150,40 @@ def build_router(connections_by_project: dict[Path, Connections], projects: list
             return float(max(60, min(1800, meta.running_threshold_seconds)))
         return _RUNNING_THRESHOLD_SECONDS
 
+    # Per-node thresholds derived from the observation collector's
+    # p95 stats. When a thread's `current_node` has accumulated stats,
+    # use `p95 * margin` as the threshold instead of the project-wide
+    # default. This adapts the dashboard to each app's actual node
+    # latencies — drawing_extract gets a generous threshold, persist
+    # gets a tight one.
+    _OBSERVATION_MARGIN = 2.0  # how far past p95 before we flip to idle
+    _MIN_VISITS_FOR_ADAPTIVE = 5  # require some signal before trusting stats
+
+    def _per_node_thresholds_for(name: str) -> dict[str, float]:
+        path = name_to_path.get(name)
+        if path is None:
+            return {}
+        obs: RuntimeObservations | None = obs_cache.load(path)
+        if obs is None:
+            return {}
+        out: dict[str, float] = {}
+        for graph_obs in obs.graphs.values():
+            for node_name, stats in graph_obs.nodes.items():
+                if stats.visits < _MIN_VISITS_FOR_ADAPTIVE:
+                    continue
+                # Use max(p95*margin, max+small_buffer) so a thread that
+                # hits the observed worst-case isn't immediately idle'd.
+                # Floor at 30s — even fast nodes deserve a tolerance window.
+                threshold = max(
+                    stats.duration_p95 * _OBSERVATION_MARGIN,
+                    stats.duration_max * 1.2,
+                    30.0,
+                )
+                # Cap at 1 hour — anything legitimately slower is a
+                # design problem, not a monitoring problem.
+                out[node_name] = min(threshold, 3600.0)
+        return out
+
     # Topology-derived terminal-node names per project. A node is
     # "terminal" when its only outgoing edges go to `__end__` (or it
     # has no outgoing edges at all in any graph). Used by _derive_status
@@ -207,6 +242,7 @@ def build_router(connections_by_project: dict[Path, Connections], projects: list
         run_clustering = _run_clustering_for(name)
         terminals = _terminal_nodes_for(name)
         running_threshold = _running_threshold_for(name)
+        per_node = _per_node_thresholds_for(name)
         return {
             "project": name,
             "limit": limit,
@@ -217,7 +253,7 @@ def build_router(connections_by_project: dict[Path, Connections], projects: list
             # (trailing-UUID + 5min proximity). Always serialized so the
             # frontend can tell "no rule yet" from "explicit no-cluster".
             "run_clustering": (run_clustering.model_dump() if run_clustering else None),
-            "threads": [_serialize_thread(r, grouping, terminals, running_threshold) for r in rows],
+            "threads": [_serialize_thread(r, grouping, terminals, running_threshold, per_node) for r in rows],
         }
 
     @router.get("/threads/{name}/{thread_id}")
@@ -389,9 +425,17 @@ def _serialize_thread(
     grouping: ThreadGrouping | None = None,
     terminal_nodes: frozenset[str] = frozenset(),
     running_threshold_seconds: float = _RUNNING_THRESHOLD_SECONDS,
+    per_node_thresholds: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     current_node, recent_nodes = _derive_nodes(row)
     grouping_fields = _resolve_grouping(row["thread_id"], grouping)
+    # Effective threshold for THIS thread: use per-node stats when this
+    # node has enough observed visits, else fall back to project-wide.
+    effective_threshold = running_threshold_seconds
+    if per_node_thresholds and current_node:
+        node_threshold = per_node_thresholds.get(current_node)
+        if node_threshold is not None:
+            effective_threshold = node_threshold
     return {
         "thread_id": row["thread_id"],
         "latest_checkpoint_id": row["latest_checkpoint_id"],
@@ -401,7 +445,7 @@ def _serialize_thread(
             row,
             current_node=current_node,
             terminal_nodes=terminal_nodes,
-            running_threshold_seconds=running_threshold_seconds,
+            running_threshold_seconds=effective_threshold,
         ),
         "current_node": current_node,
         "recent_nodes": recent_nodes,
