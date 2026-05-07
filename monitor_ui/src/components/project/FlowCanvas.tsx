@@ -88,7 +88,13 @@ interface NodeData extends Record<string, unknown> {
   role: NodeRole;
   graphName: string;
   nodeName: string;
+  /** True when this node is the focused thread's current node. Driver
+   *  for the strong active-node ring. */
   isActive: boolean;
+  /** True when this node is the current node of an OTHER live thread
+   *  (lock-mode "show all active"). Gets a softer secondary highlight
+   *  so the focused vs sister-thread distinction is unmistakable. */
+  isSecondaryActive: boolean;
   isFocusedGraph: boolean;
   /** 1-based step number in the run's timeline if this node fired, else null. */
   ghostStep: number | null;
@@ -137,6 +143,7 @@ function pickGraphForThread(thread: ThreadSummary, graphs: TopologyGraph[]): str
 function buildLayout(
   topology: TopologyResponse,
   focusedGraphName: string | null,
+  focusedNodeId: string | null,
   activeNodeIds: Set<string>,
   selectedGraph: string,
   ghostMode: boolean,
@@ -211,6 +218,8 @@ function buildLayout(
       bb.maxY = Math.max(bb.maxY, y + pos.height);
       graphBounds[graph.name] = bb;
 
+      const isFocused = focusedNodeId !== null && id === focusedNodeId;
+      const isAnyActive = activeNodeIds.has(id);
       nodes.push({
         id,
         position: { x, y },
@@ -220,7 +229,11 @@ function buildLayout(
           role: roleFor(node),
           graphName: graph.name,
           nodeName: node,
-          isActive: activeNodeIds.has(id),
+          // The focused thread's current node gets the primary "active"
+          // treatment; other threads' nodes (lock-mode) become "secondary"
+          // — visually present but visibly subordinate to the focused one.
+          isActive: isFocused,
+          isSecondaryActive: isAnyActive && !isFocused,
           isFocusedGraph,
           ghostStep: ghostNodeSteps.get(id) ?? null,
           ghostMode,
@@ -252,6 +265,7 @@ function buildLayout(
           graphName: graph.name,
           nodeName: "",
           isActive: false,
+          isSecondaryActive: false,
           isFocusedGraph: !!focusedGraphName && focusedGraphName === graph.name,
           ghostStep: null,
           ghostMode: false,
@@ -329,10 +343,23 @@ function RoleNode({ data }: NodeProps) {
         styleByRole[d.role],
         !d.isFocusedGraph && "opacity-50",
         ghostUnfired && "opacity-30",
-        ghostFired && !d.isActive && "ring-2 ring-emerald-400/70 ring-offset-1 ring-offset-background",
-        d.isActive && "ring-4 ring-emerald-300 ring-offset-2 ring-offset-background animate-pulse",
+        ghostFired && !d.isActive && !d.isSecondaryActive &&
+          "ring-2 ring-emerald-400/70 ring-offset-1 ring-offset-background",
+        // Focused thread's lit node — full emerald pulse, the eye-magnet
+        d.isActive &&
+          "ring-4 ring-emerald-300 ring-offset-2 ring-offset-background animate-pulse",
+        // Sister thread's lit node — sky-blue static ring, distinct
+        // chroma so users can tell focused vs other-active at a glance
+        d.isSecondaryActive &&
+          "ring-2 ring-sky-400/80 ring-offset-1 ring-offset-background",
       )}
-      title={`${d.graphName}.${d.nodeName}${d.ghostStep != null ? ` · step ${d.ghostStep}` : ""}`}
+      title={
+        d.isActive
+          ? `${d.graphName}.${d.nodeName} · focused thread is here${d.ghostStep != null ? ` · step ${d.ghostStep}` : ""}`
+          : d.isSecondaryActive
+            ? `${d.graphName}.${d.nodeName} · sister thread is here${d.ghostStep != null ? ` · step ${d.ghostStep}` : ""}`
+            : `${d.graphName}.${d.nodeName}${d.ghostStep != null ? ` · step ${d.ghostStep}` : ""}`
+      }
     >
       <Handle type="target" position={Position.Top} className="!bg-zinc-400" />
       <span className={cn(d.role === "router" && "block -rotate-45")}>{d.label}</span>
@@ -441,8 +468,8 @@ export function FlowCanvas({
   );
 
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
-    () => buildLayout(topology, focusedGraphName, activeNodeIds, selectedGraph, ghostMode, ghostNodeSteps),
-    [topology, focusedGraphName, activeNodeIds, selectedGraph, ghostMode, ghostNodeSteps],
+    () => buildLayout(topology, focusedGraphName, panTargetNodeId, activeNodeIds, selectedGraph, ghostMode, ghostNodeSteps),
+    [topology, focusedGraphName, panTargetNodeId, activeNodeIds, selectedGraph, ghostMode, ghostNodeSteps],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
