@@ -26,7 +26,7 @@ import { NodeInspector } from "@/components/project/NodeInspector";
 import { ReplayController, type ReplayState } from "@/components/project/ReplayController";
 import { RunsDrawer } from "@/components/project/RunsDrawer";
 import { RunStepsCard } from "@/components/project/RunStepsCard";
-import { countStaleness } from "@/lib/staleness";
+import { countStaleness, thresholdsFromRunning } from "@/lib/staleness";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRunCheckpoints } from "@/lib/useRunCheckpoints";
 import { cn } from "@/lib/utils";
@@ -275,8 +275,14 @@ export function ProjectView() {
 
   // Staleness — surfaces "N stuck" / "N stale" chips so the user spots
   // hung runs at a glance even when not focused on a sidebar row.
+  // Thresholds scale with the project's running_threshold so apps with
+  // slow nodes (jeevy: 900s, chimera-pipeline: 600s+) don't false-flag
+  // legitimately long executions as stale.
   const staleCounts = useMemo(
-    () => countStaleness(threadsData?.threads ?? []),
+    () => countStaleness(
+      threadsData?.threads ?? [],
+      thresholdsFromRunning(threadsData?.running_threshold_seconds),
+    ),
     [threadsData],
   );
 

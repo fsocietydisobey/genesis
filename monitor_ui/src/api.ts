@@ -92,6 +92,14 @@ export interface ThreadsResponse {
   since: string | null;
   scope_label: string;             // "Deliverable", "Run", "Chain", ...
   run_clustering: RunClustering | null;
+  /**
+   * Per-project running threshold in seconds. Frontend's stale/stuck
+   * classifier scales its thresholds against this — projects with slow
+   * nodes get correspondingly later "stale"/"stuck" flags so the badges
+   * don't false-fire during legitimately long node executions.
+   * Default 300 when no metadata scan has provided a value.
+   */
+  running_threshold_seconds: number;
   threads: ThreadSummary[];
 }
 

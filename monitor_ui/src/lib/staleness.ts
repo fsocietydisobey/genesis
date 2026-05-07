@@ -26,22 +26,58 @@ import type { ThreadSummary } from "@/api";
 
 export type Staleness = "fresh" | "stale" | "stuck" | "hitl-idle";
 
-export const STALE_THRESHOLD_MS = 5 * 60 * 1000;
-export const STUCK_THRESHOLD_MS = 15 * 60 * 1000;
+/**
+ * Default thresholds — used when the project hasn't reported its own
+ * running_threshold yet (no metadata scan landed). Match the legacy
+ * 5min/15min behavior so unscanned projects look exactly like before.
+ */
+export const DEFAULT_STALE_THRESHOLD_MS = 5 * 60 * 1000;
+export const DEFAULT_STUCK_THRESHOLD_MS = 15 * 60 * 1000;
 
-export function getStaleness(thread: ThreadSummary, now: number = Date.now()): Staleness {
+/** Legacy aliases — kept for any caller that read the constants directly. */
+export const STALE_THRESHOLD_MS = DEFAULT_STALE_THRESHOLD_MS;
+export const STUCK_THRESHOLD_MS = DEFAULT_STUCK_THRESHOLD_MS;
+
+export interface StalenessThresholds {
+  staleMs: number;
+  stuckMs: number;
+}
+
+/**
+ * Derive stale/stuck thresholds from a project's running_threshold.
+ * Stale fires AT the running threshold (the moment the backend's
+ * heuristic would flip a thread to idle if not for fresh activity);
+ * stuck fires at 3× the threshold (definitively beyond any legitimate
+ * latency for that project's nodes).
+ *
+ * For default 300s → stale=5min, stuck=15min (matches legacy).
+ * For jeevy 900s → stale=15min, stuck=45min.
+ */
+export function thresholdsFromRunning(runningThresholdSeconds: number | undefined | null): StalenessThresholds {
+  if (!runningThresholdSeconds || runningThresholdSeconds <= 0) {
+    return { staleMs: DEFAULT_STALE_THRESHOLD_MS, stuckMs: DEFAULT_STUCK_THRESHOLD_MS };
+  }
+  const baseMs = runningThresholdSeconds * 1000;
+  return { staleMs: baseMs, stuckMs: baseMs * 3 };
+}
+
+export function getStaleness(
+  thread: ThreadSummary,
+  thresholds: StalenessThresholds = { staleMs: DEFAULT_STALE_THRESHOLD_MS, stuckMs: DEFAULT_STUCK_THRESHOLD_MS },
+  now: number = Date.now(),
+): Staleness {
   if (!thread.last_updated) return "fresh";
   const updated = new Date(thread.last_updated).getTime();
   if (!Number.isFinite(updated)) return "fresh";
   const age = now - updated;
 
   if (thread.status === "running" || thread.status === "starting") {
-    if (age >= STUCK_THRESHOLD_MS) return "stuck";
-    if (age >= STALE_THRESHOLD_MS) return "stale";
+    if (age >= thresholds.stuckMs) return "stuck";
+    if (age >= thresholds.staleMs) return "stale";
     return "fresh";
   }
   if (thread.status === "paused") {
-    if (age >= STUCK_THRESHOLD_MS) return "hitl-idle";
+    if (age >= thresholds.stuckMs) return "hitl-idle";
     return "fresh";
   }
   return "fresh";
@@ -56,11 +92,15 @@ export const STALENESS_PRIORITY: Record<Staleness, number> = {
 };
 
 /** Tally staleness across an array of threads — used for the header chip. */
-export function countStaleness(threads: ThreadSummary[]): Record<Staleness, number> {
+export function countStaleness(
+  threads: ThreadSummary[],
+  thresholds?: StalenessThresholds,
+): Record<Staleness, number> {
   const out: Record<Staleness, number> = { fresh: 0, stale: 0, stuck: 0, "hitl-idle": 0 };
   const now = Date.now();
-  for (const t of threads) {
-    out[getStaleness(t, now)] += 1;
+  const t = thresholds ?? { staleMs: DEFAULT_STALE_THRESHOLD_MS, stuckMs: DEFAULT_STUCK_THRESHOLD_MS };
+  for (const thread of threads) {
+    out[getStaleness(thread, t, now)] += 1;
   }
   return out;
 }

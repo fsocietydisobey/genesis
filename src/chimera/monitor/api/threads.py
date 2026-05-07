@@ -253,6 +253,12 @@ def build_router(connections_by_project: dict[Path, Connections], projects: list
             # (trailing-UUID + 5min proximity). Always serialized so the
             # frontend can tell "no rule yet" from "explicit no-cluster".
             "run_clustering": (run_clustering.model_dump() if run_clustering else None),
+            # Per-project running threshold so the frontend's stale/
+            # stuck badge thresholds can scale with it. Apps with slow
+            # nodes (jeevy: 900s, chimera-pipeline: 600s+) shouldn't
+            # show "stale" at a fixed 5min when the backend legitimately
+            # classifies them running for longer.
+            "running_threshold_seconds": running_threshold,
             "threads": [_serialize_thread(r, grouping, terminals, running_threshold, per_node) for r in rows],
         }
 

@@ -29,7 +29,7 @@ import type { RunClustering, ThreadStatus, ThreadSummary } from "@/api";
 import { useListThreadsQuery } from "@/api";
 import { StalenessBadge } from "@/components/project/StalenessBadge";
 import { Badge } from "@/components/ui/badge";
-import { getStaleness } from "@/lib/staleness";
+import { getStaleness, thresholdsFromRunning } from "@/lib/staleness";
 import { cn } from "@/lib/utils";
 
 const STATUS_DOT: Record<ThreadStatus, string> = {
@@ -233,6 +233,7 @@ export function RunsSidebar({ projectName, selectedThreadId, onSelectThread, onS
 
   const scopeLabel = data?.scope_label || "Run";
   const runClustering = data?.run_clustering ?? null;
+  const stalenessThresholds = thresholdsFromRunning(data?.running_threshold_seconds);
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-card/40">
@@ -270,6 +271,7 @@ export function RunsSidebar({ projectName, selectedThreadId, onSelectThread, onS
               label={bucket.label}
               scopeLabel={scopeLabel}
               runClustering={runClustering}
+              stalenessThresholds={stalenessThresholds}
               groups={bucket.groups}
               selectedThreadId={selectedThreadId}
               onSelectThread={onSelectThread}
@@ -287,6 +289,7 @@ function DateBucket({
   label,
   scopeLabel,
   runClustering,
+  stalenessThresholds,
   groups,
   selectedThreadId,
   onSelectThread,
@@ -296,6 +299,7 @@ function DateBucket({
   label: string;
   scopeLabel: string;
   runClustering: RunClustering | null;
+  stalenessThresholds: ReturnType<typeof thresholdsFromRunning>;
   groups: ScopeGroup[];
   selectedThreadId: string | null;
   onSelectThread: (threadId: string | null) => void;
@@ -323,6 +327,7 @@ function DateBucket({
               key={`${group.scopeKind}/${group.scopeId}`}
               scopeLabel={scopeLabel}
               runClustering={runClustering}
+              stalenessThresholds={stalenessThresholds}
               group={group}
               selectedThreadId={selectedThreadId}
               onSelectThread={onSelectThread}
@@ -468,6 +473,7 @@ function clusterThreadsIntoRuns(
 function ScopeRow({
   scopeLabel,
   runClustering,
+  stalenessThresholds,
   group,
   selectedThreadId,
   onSelectThread,
@@ -475,6 +481,7 @@ function ScopeRow({
 }: {
   scopeLabel: string;
   runClustering: RunClustering | null;
+  stalenessThresholds: ReturnType<typeof thresholdsFromRunning>;
   group: ScopeGroup;
   selectedThreadId: string | null;
   onSelectThread: (threadId: string | null) => void;
@@ -550,6 +557,7 @@ function ScopeRow({
             <RunClusterRow
               key={cluster.key}
               cluster={cluster}
+              stalenessThresholds={stalenessThresholds}
               selectedThreadId={selectedThreadId}
               onSelectThread={onSelectThread}
               onSelectRun={onSelectRun}
@@ -564,11 +572,13 @@ function ScopeRow({
 
 function RunClusterRow({
   cluster,
+  stalenessThresholds,
   selectedThreadId,
   onSelectThread,
   onSelectRun,
 }: {
   cluster: RunCluster;
+  stalenessThresholds: ReturnType<typeof thresholdsFromRunning>;
   selectedThreadId: string | null;
   onSelectThread: (threadId: string | null) => void;
   onSelectRun?: (threadIds: string[]) => void;
@@ -632,6 +642,7 @@ function RunClusterRow({
               key={stage}
               stage={stage}
               threads={threads}
+              stalenessThresholds={stalenessThresholds}
               selectedThreadId={selectedThreadId}
               onSelectThread={onSelectThread}
             />
@@ -645,11 +656,13 @@ function RunClusterRow({
 function StageBlock({
   stage,
   threads,
+  stalenessThresholds,
   selectedThreadId,
   onSelectThread,
 }: {
   stage: string;
   threads: ThreadSummary[];
+  stalenessThresholds: ReturnType<typeof thresholdsFromRunning>;
   selectedThreadId: string | null;
   onSelectThread: (threadId: string | null) => void;
 }) {
@@ -664,6 +677,7 @@ function StageBlock({
             key={t.thread_id}
             thread={t}
             active={selectedThreadId === t.thread_id}
+            stalenessThresholds={stalenessThresholds}
             onClick={() =>
               onSelectThread(selectedThreadId === t.thread_id ? null : t.thread_id)
             }
@@ -677,14 +691,16 @@ function StageBlock({
 function ThreadRow({
   thread,
   active,
+  stalenessThresholds,
   onClick,
 }: {
   thread: ThreadSummary;
   active: boolean;
+  stalenessThresholds: ReturnType<typeof thresholdsFromRunning>;
   onClick: () => void;
 }) {
   const detail = thread.stage_detail || "(direct)";
-  const staleness = getStaleness(thread);
+  const staleness = getStaleness(thread, stalenessThresholds);
   return (
     <li>
       <button

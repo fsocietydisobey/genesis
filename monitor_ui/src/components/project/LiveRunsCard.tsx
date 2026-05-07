@@ -15,7 +15,7 @@ import { useListThreadsQuery } from "@/api";
 import { Badge } from "@/components/ui/badge";
 import { deriveLabel } from "@/components/project/RunsSidebar";
 import { StalenessBadge } from "@/components/project/StalenessBadge";
-import { formatElapsed, getStaleness, STALENESS_PRIORITY } from "@/lib/staleness";
+import { formatElapsed, getStaleness, STALENESS_PRIORITY, thresholdsFromRunning } from "@/lib/staleness";
 import { cn } from "@/lib/utils";
 
 const STATUS_DOT: Record<ThreadStatus, string> = {
@@ -70,19 +70,20 @@ export function LiveRunsCard({
   );
 
   const threads = data?.threads ?? [];
+  const stalenessThresholds = thresholdsFromRunning(data?.running_threshold_seconds);
   // Sort: stuck first, then stale, then hitl-idle, then fresh — within
   // each tier, newest-updated first. Forces user attention to anything
   // that needs it without burying healthy active runs.
   const live = threads
     .filter((t) => t.status === "running" || t.status === "paused" || t.status === "starting")
     .sort((a, b) => {
-      const da = STALENESS_PRIORITY[getStaleness(a)];
-      const db = STALENESS_PRIORITY[getStaleness(b)];
+      const da = STALENESS_PRIORITY[getStaleness(a, stalenessThresholds)];
+      const db = STALENESS_PRIORITY[getStaleness(b, stalenessThresholds)];
       if (da !== db) return da - db;
       return (b.last_updated ?? "").localeCompare(a.last_updated ?? "");
     });
 
-  const stuckCount = live.filter((t) => getStaleness(t) === "stuck").length;
+  const stuckCount = live.filter((t) => getStaleness(t, stalenessThresholds) === "stuck").length;
   const idleCount = threads.length - live.length;
 
   // Drag state ------------------------------------------------------------
@@ -200,6 +201,7 @@ export function LiveRunsCard({
               key={t.thread_id}
               thread={t}
               active={selectedThreadId === t.thread_id}
+              stalenessThresholds={stalenessThresholds}
               onClick={() =>
                 onSelectThread(selectedThreadId === t.thread_id ? null : t.thread_id)
               }
@@ -223,13 +225,15 @@ function LiveRunRow({
   thread,
   active,
   onClick,
+  stalenessThresholds,
 }: {
   thread: ThreadSummary;
   active: boolean;
   onClick: () => void;
+  stalenessThresholds: ReturnType<typeof thresholdsFromRunning>;
 }) {
   const label = deriveLabel(thread);
-  const staleness = getStaleness(thread);
+  const staleness = getStaleness(thread, stalenessThresholds);
   return (
     <li>
       <button
