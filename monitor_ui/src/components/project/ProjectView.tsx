@@ -115,10 +115,30 @@ export function ProjectView() {
     // Most-recently-updated running thread wins. Falls back to paused
     // (which still represents an in-flight run waiting on a human).
     const ranked = [...threadsData.threads]
-      .filter((t) => t.status === "running" || t.status === "paused")
+      .filter((t) => t.status === "running" || t.status === "paused" || t.status === "starting")
       .sort((a, b) => (b.last_updated ?? "").localeCompare(a.last_updated ?? ""));
     return ranked[0]?.thread_id ?? null;
   }, [threadsData]);
+
+  // Drop a stale manual selection when a fresh live run appears. Without
+  // this, clicking a run earlier in the day pins the focus indefinitely
+  // — even when that run finishes and a brand-new run starts, the
+  // dashboard keeps showing the stale finished one. The user has to
+  // hit "clear focus" manually.
+  //
+  // Heuristic: if the manually-focused thread exists AND is idle AND
+  // there's a different live (running/paused/starting) thread, release
+  // the manual lock so auto-follow takes over. Don't release if the
+  // user just clicked (the manually-focused thread is still live) —
+  // that would yank them away from what they're inspecting.
+  useEffect(() => {
+    if (!userSelectedThreadId || !threadsData) return;
+    const focused = threadsData.threads.find((t) => t.thread_id === userSelectedThreadId);
+    if (!focused) return;
+    if (focused.status !== "idle") return;
+    if (!autoFocusedThreadId || autoFocusedThreadId === userSelectedThreadId) return;
+    setUserSelectedThreadId(null);
+  }, [userSelectedThreadId, threadsData, autoFocusedThreadId]);
 
   const effectiveSelectedThreadId = userSelectedThreadId ?? autoFocusedThreadId;
 

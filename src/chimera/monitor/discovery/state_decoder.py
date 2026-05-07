@@ -9,10 +9,87 @@ than crashing — exactly what the inspector needs).
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from typing import Any
 
 _OPAQUE = "<opaque blob — unknown encoding>"
+
+
+def to_jsonable(value: Any, _depth: int = 0) -> Any:
+    """Recursively convert a decoded state value into something FastAPI's
+    `jsonable_encoder` can safely traverse.
+
+    LangGraph state can contain types that defy default JSON encoding:
+      - `langgraph.types.Send` / `Command` / `Interrupt` (dataclass-like
+        primitives whose `__iter__` raises rather than yielding kv pairs;
+        `jsonable_encoder` mistakes them for sequences and crashes)
+      - LangChain `BaseMessage` subclasses
+      - Pydantic models (handled by jsonable_encoder, but we normalize
+        for cross-version safety)
+      - Sets, tuples, bytes, datetimes — usually fine but vary by version
+
+    Strategy: pass through known-safe primitives; recurse into dicts/
+    lists/tuples/sets; for anything else, prefer `model_dump()`,
+    `dict()`, `dataclasses.asdict()`, `__dict__`, then a typed marker.
+
+    Depth-capped at 200 to short-circuit pathological cycles.
+    """
+    if _depth > 200:
+        return {"__deep__": True, "type": type(value).__name__}
+
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, bytes):
+        # Bytes inside state are usually serialization noise — represent
+        # by a short prefix + length so the inspector can show something.
+        try:
+            return {"__bytes__": True, "size": len(value), "preview": value[:32].hex()}
+        except Exception:
+            return {"__bytes__": True}
+
+    if isinstance(value, dict):
+        out: dict[str, Any] = {}
+        for k, v in value.items():
+            key = k if isinstance(k, str) else str(k)
+            out[key] = to_jsonable(v, _depth + 1)
+        return out
+
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [to_jsonable(v, _depth + 1) for v in value]
+
+    # Pydantic v2 / v1
+    dump = getattr(value, "model_dump", None)
+    if callable(dump):
+        try:
+            return to_jsonable(dump(), _depth + 1)
+        except Exception:
+            pass
+    dump_v1 = getattr(value, "dict", None)
+    if callable(dump_v1):
+        try:
+            return to_jsonable(dump_v1(), _depth + 1)
+        except Exception:
+            pass
+
+    # Dataclasses (LangGraph's Send/Command are dataclass-like)
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        try:
+            return to_jsonable(dataclasses.asdict(value), _depth + 1)
+        except Exception:
+            pass
+
+    # Last resort — read attribute dict, tag with the type name so the
+    # UI can show "what was this".
+    obj_dict = getattr(value, "__dict__", None)
+    if isinstance(obj_dict, dict):
+        return {
+            "__type__": type(value).__name__,
+            **{k: to_jsonable(v, _depth + 1) for k, v in obj_dict.items() if not k.startswith("_")},
+        }
+
+    # Truly unknown — repr it.
+    return {"__type__": type(value).__name__, "repr": repr(value)[:200]}
 
 
 def decode(serializer_type: str | None, data: Any) -> Any:

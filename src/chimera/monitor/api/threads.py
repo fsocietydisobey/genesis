@@ -28,7 +28,7 @@ from .._optional import require
 from ..discovery.connections import Connections, PostgresConnection, SqliteConnection, discover_sqlite
 from ..discovery.project import Project
 from ..discovery.redaction import redact
-from ..discovery.state_decoder import decode
+from ..discovery.state_decoder import decode, to_jsonable
 from ..discovery.thread_grouping import parse_grouping
 from ..metadata import cache as meta_cache
 from ..metadata.schema import ProjectMetadata, RunClustering, ThreadGrouping
@@ -366,14 +366,18 @@ def _resolve_grouping(thread_id: str, grouping: ThreadGrouping | None) -> dict[s
 
 
 def _serialize_checkpoint(row: dict[str, Any]) -> dict[str, Any]:
+    # to_jsonable runs AFTER redact so the redacted payload (still a
+    # mix of dicts, Pydantic models, dataclasses, Send objects, …)
+    # gets normalized into something FastAPI's JSON encoder can
+    # traverse without crashing on objects whose `__iter__` raises.
     return {
         "checkpoint_id": row["checkpoint_id"],
         "parent_checkpoint_id": row.get("parent_checkpoint_id"),
         "created_at": row.get("ts"),
         "step": row.get("step"),
         "node": _derive_nodes(row)[0],
-        "state": redact(_unwrap_state(row.get("checkpoint"))),
-        "metadata": redact(row["metadata"]) if row.get("metadata") else None,
+        "state": to_jsonable(redact(_unwrap_state(row.get("checkpoint")))),
+        "metadata": to_jsonable(redact(row["metadata"])) if row.get("metadata") else None,
     }
 
 
