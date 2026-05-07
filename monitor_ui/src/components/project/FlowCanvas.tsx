@@ -430,11 +430,14 @@ export function FlowCanvas({
     return set;
   }, [focusedNode, focusedGraphName, additionalActiveThreads, topology]);
 
-  // The single-node id used for auto-zoom (only when there's exactly one
-  // active node, which is the standard focused-run case).
-  const singleActiveNodeId = useMemo(
-    () => (activeNodeIds.size === 1 ? Array.from(activeNodeIds)[0] : null),
-    [activeNodeIds],
+  // Auto-pan target. Always the FOCUSED thread's current node when one
+  // is set — even if other sister/active threads also pulse on the
+  // canvas (lock-mode "show all active"). Without this, lock-mode
+  // bailed out of panning entirely because there were multiple lit
+  // nodes; the user lost camera-follow as their focused run progressed.
+  const panTargetNodeId = useMemo(
+    () => (focusedNode && focusedGraphName ? `${focusedGraphName}__${focusedNode}` : null),
+    [focusedNode, focusedGraphName],
   );
 
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
@@ -489,7 +492,7 @@ export function FlowCanvas({
           onEdgesChange={onEdgesChange}
           onNodeClick={handleNodeClick}
           selectedGraph={selectedGraph}
-          activeNodeId={singleActiveNodeId}
+          activeNodeId={panTargetNodeId}
           focusZoom={focusZoom}
           ghostMode={ghostMode}
         />
