@@ -188,6 +188,21 @@ source_mtime_max: {source_mtime_max}
 # Sample thread_ids from this project's checkpointer (use these to derive thread_grouping)
 {thread_id_samples}
 
+# Previous scan's output (when present — refine rather than recompute)
+# If this section has content, you've analyzed this project before. Compare your
+# previous decisions against the new observations below. Where observations
+# CONTRADICT prior reasoning (e.g. you guessed running_threshold_seconds=300 but
+# p95 of correspondence_phase1 is 3000s), update. Where observations CONFIRM
+# prior reasoning, keep. The system gets sharper across rescans.
+{previous_block}
+
+# Runtime observations (when present — empirical p50/p95/max latencies + end-node frequencies)
+# Use these to sharpen `running_threshold_seconds` toward the slowest-actually-observed node.
+# If a node's p95 is dramatically higher than what its body would suggest, the project is
+# probably hitting that pathology in production — the threshold should accommodate it.
+# End-node frequencies cross-check the topology-derived terminals.
+{observations_block}
+
 # README (if present, may be truncated)
 {readme_block}
 
@@ -214,6 +229,8 @@ async def scan_project(project_name: str, project_path: Path) -> ProjectMetadata
     readme_block = _read_readme(project_path)
     source_block = _read_graph_sources(project_path)
     thread_id_samples = _sample_thread_ids(project_path)
+    observations_block = _format_observations(project_path)
+    previous_block = _format_previous(project_path)
     mtime_max = newest_source_mtime(project_path)
     now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -226,6 +243,8 @@ async def scan_project(project_name: str, project_path: Path) -> ProjectMetadata
         readme_block=readme_block or "(no README found)",
         source_block=source_block or "(no graph source files captured)",
         thread_id_samples=thread_id_samples or "(no thread_ids in checkpointer yet — omit thread_grouping)",
+        observations_block=observations_block or "(no runtime observations collected yet — first scan)",
+        previous_block=previous_block or "(no previous scan — this is a fresh enrichment)",
     )
 
     raw = await _run_model(prompt, project_path, project_name)
@@ -354,6 +373,61 @@ def _strip_code_fences(text: str) -> str:
     if schema_match:
         return text[schema_match.start():]
     return text
+
+
+def _format_previous(project_path: Path) -> str:
+    """Render the project's previously-saved metadata (if any) for the
+    refinement scan. Lets the LLM compare its own prior reasoning
+    against new observations and adjust rather than recompute. Empty
+    string on first scan."""
+    from . import cache as meta_cache
+
+    prev = meta_cache.load(project_path)
+    if prev is None:
+        return ""
+    # Use yaml.safe_dump for a clean, readable rendering. Strip the
+    # auto-managed timestamp/mtime fields — those are about cache
+    # invalidation, not about decisions.
+    data = prev.model_dump(exclude={"generated_at", "source_mtime_max", "schema_version"})
+    return yaml.safe_dump(data, sort_keys=True, default_flow_style=False, allow_unicode=True)
+
+
+def _format_observations(project_path: Path) -> str:
+    """Render the project's accumulated runtime observations as a
+    human-readable block for the scan prompt. Empty string when no
+    observation file exists yet (first scan, no runs ever)."""
+    from . import observations as obs_mod
+
+    obs = obs_mod.load(project_path)
+    if obs is None or obs.samples_seen == 0:
+        return ""
+    lines = [
+        f"# Last collected: {obs.last_collected_at}",
+        f"# Threads observed: {obs.samples_seen}",
+    ]
+    for graph_name, graph_obs in obs.graphs.items():
+        if not graph_obs.nodes:
+            continue
+        lines.append(f"# {graph_name}:")
+        # Sort nodes by p95 descending so the slowest are most prominent
+        sorted_nodes = sorted(
+            graph_obs.nodes.items(),
+            key=lambda kv: kv[1].duration_p95,
+            reverse=True,
+        )
+        for node_name, stats in sorted_nodes:
+            lines.append(
+                f"#   {node_name}: visits={stats.visits}  "
+                f"p50={stats.duration_p50:.1f}s  p95={stats.duration_p95:.1f}s  "
+                f"max={stats.duration_max:.1f}s"
+            )
+        if graph_obs.end_node_counts:
+            ends = sorted(graph_obs.end_node_counts.items(), key=lambda kv: kv[1], reverse=True)
+            lines.append(
+                "#   empirical end-nodes: "
+                + ", ".join(f"{n} ({c}x)" for n, c in ends[:6])
+            )
+    return "\n".join(lines)
 
 
 def _format_ast(results: list[TopologyResult]) -> str:
