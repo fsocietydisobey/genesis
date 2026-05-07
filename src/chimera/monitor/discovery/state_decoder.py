@@ -66,13 +66,39 @@ class _DecodeError(Exception):
 
 
 def _decode_msgpack(data: bytes, encoding: str) -> Any:
-    """Try ormsgpack first (LangGraph's preferred), fall back to msgpack."""
+    """Decode a msgpack-encoded checkpoint payload.
+
+    LangGraph wraps payloads with a JsonPlus extension protocol that
+    encodes Pydantic models, datetimes, sets, etc. as ext-typed msgpack
+    values. Plain `ormsgpack.unpackb(data)` can't restore those types
+    and will raise. The right deserializer is LangGraph's own
+    `JsonPlusSerializer` — it ships with the framework and reverses
+    every type the checkpointer wrote.
+
+    Falls back to raw ormsgpack/msgpack only if JsonPlus isn't
+    importable (which would mean langgraph itself is missing — caller
+    will hit other errors first, but this gives a useful path for
+    apps that wrote msgpack outside LangGraph).
+    """
+    # Primary path — LangGraph's deserializer.
+    try:
+        from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+        try:
+            return JsonPlusSerializer().loads_typed((encoding, data))
+        except Exception as exc:
+            # Surface the real error rather than masking it with a
+            # downstream import failure. Caller handles _DecodeError.
+            raise _DecodeError(f"JsonPlus loads_typed failed: {exc}") from exc
+    except ImportError:
+        pass
+
+    # Bare-msgpack fallback for data not produced by LangGraph.
     try:
         import ormsgpack  # type: ignore
         try:
             return ormsgpack.unpackb(data)
-        except Exception:
-            pass
+        except Exception as exc:
+            raise _DecodeError(f"ormsgpack unpackb failed: {exc}") from exc
     except ImportError:
         pass
 
