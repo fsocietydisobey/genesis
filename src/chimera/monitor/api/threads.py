@@ -140,6 +140,15 @@ def build_router(connections_by_project: dict[Path, Connections], projects: list
         meta = _metadata_for(name)
         return meta.run_clustering if meta else None
 
+    def _running_threshold_for(name: str) -> float:
+        meta = _metadata_for(name)
+        if meta and meta.running_threshold_seconds is not None:
+            # Clamp to the documented [60, 1800] range so a stray
+            # scan response can't flatten the heuristic into "always
+            # running" or "never running".
+            return float(max(60, min(1800, meta.running_threshold_seconds)))
+        return _RUNNING_THRESHOLD_SECONDS
+
     # Topology-derived terminal-node names per project. A node is
     # "terminal" when its only outgoing edges go to `__end__` (or it
     # has no outgoing edges at all in any graph). Used by _derive_status
@@ -197,6 +206,7 @@ def build_router(connections_by_project: dict[Path, Connections], projects: list
         grouping = _grouping_for(name)
         run_clustering = _run_clustering_for(name)
         terminals = _terminal_nodes_for(name)
+        running_threshold = _running_threshold_for(name)
         return {
             "project": name,
             "limit": limit,
@@ -207,7 +217,7 @@ def build_router(connections_by_project: dict[Path, Connections], projects: list
             # (trailing-UUID + 5min proximity). Always serialized so the
             # frontend can tell "no rule yet" from "explicit no-cluster".
             "run_clustering": (run_clustering.model_dump() if run_clustering else None),
-            "threads": [_serialize_thread(r, grouping, terminals) for r in rows],
+            "threads": [_serialize_thread(r, grouping, terminals, running_threshold) for r in rows],
         }
 
     @router.get("/threads/{name}/{thread_id}")
@@ -367,11 +377,18 @@ def _decode_metadata(type_str: str | None, blob: bytes | None) -> Any:
 # ---------------------------------------------------------------------------
 _SPECIAL_NODES = frozenset({"__input__", "__start__", "__interrupt__", "__end__"})
 
+# Default activity window for "is this thread still in flight?" — used
+# when no per-project metadata override exists. See _derive_status's
+# step 4 docstring for the trade-offs. Per-project value comes from
+# `ProjectMetadata.running_threshold_seconds`.
+_RUNNING_THRESHOLD_SECONDS = 300.0
+
 
 def _serialize_thread(
     row: dict[str, Any],
     grouping: ThreadGrouping | None = None,
     terminal_nodes: frozenset[str] = frozenset(),
+    running_threshold_seconds: float = _RUNNING_THRESHOLD_SECONDS,
 ) -> dict[str, Any]:
     current_node, recent_nodes = _derive_nodes(row)
     grouping_fields = _resolve_grouping(row["thread_id"], grouping)
@@ -380,7 +397,12 @@ def _serialize_thread(
         "latest_checkpoint_id": row["latest_checkpoint_id"],
         "last_updated": row.get("last_updated"),
         "step": row.get("step"),
-        "status": _derive_status(row, current_node=current_node, terminal_nodes=terminal_nodes),
+        "status": _derive_status(
+            row,
+            current_node=current_node,
+            terminal_nodes=terminal_nodes,
+            running_threshold_seconds=running_threshold_seconds,
+        ),
         "current_node": current_node,
         "recent_nodes": recent_nodes,
         "agent_profile": row.get("agent_profile"),
@@ -461,21 +483,11 @@ def _derive_nodes(row: dict[str, Any]) -> tuple[str | None, list[str]]:
     return current, recent
 
 
-# Window of activity that classifies a thread as "running" rather than
-# "idle" — used as the LAST resort when no definitive signal is
-# available (HITL interrupt, terminal __end__ write, etc. are checked
-# first). Set generously (5min) so LLM-heavy nodes between checkpoint
-# writes don't flicker to idle mid-execution; the frontend's staleness
-# classifier picks up at 5min ("stale") and 15min ("stuck") for runs
-# that genuinely hang. Won't false-flag finished runs because terminal
-# detection short-circuits before this fires.
-_RUNNING_THRESHOLD_SECONDS = 300.0
-
-
 def _derive_status(
     row: dict[str, Any],
     current_node: str | None = None,
     terminal_nodes: frozenset[str] = frozenset(),
+    running_threshold_seconds: float = _RUNNING_THRESHOLD_SECONDS,
 ) -> str:
     """Classify a thread's status using every signal available from the
     checkpoint schema. Decision tree, in priority order:
@@ -533,8 +545,12 @@ def _derive_status(
         return "idle"
 
     # 4. Recent activity → in-flight (best-effort, tolerates slow nodes).
+    # Threshold is per-project when the metadata scan provided one;
+    # the default 300s applies otherwise. Apps with slower nodes
+    # (chimera's pipeline does 8min Claude calls) push it up; apps
+    # with fast graphs bring it down for tighter idle detection.
     last_updated = row.get("last_updated")
-    if last_updated and _within_seconds(last_updated, _RUNNING_THRESHOLD_SECONDS):
+    if last_updated and _within_seconds(last_updated, running_threshold_seconds):
         return "running"
 
     # 5. Default — no clear signal of activity, treat as idle. The

@@ -120,6 +120,22 @@ with semantic information that the AST cannot infer:
           time_window_seconds: 300
     When uncertain, omit `run_clustering` entirely — the dashboard
     will use a trailing-UUID + 5-min heuristic.
+  - Determine `running_threshold_seconds`: how long can a node
+    legitimately run before writing a new checkpoint? This drives
+    the dashboard's "is this thread still executing?" classifier.
+    Inspect node bodies for the slowest possible operation:
+      - Pure data transformations / DB writes        → 60-120s
+      - Single LLM call (Gemini Flash, GPT-4o-mini)  → 180-300s
+      - Heavy LLM call (Claude Sonnet, GPT-4o)       → 300-600s
+      - Multi-step LLM chain in one node body
+        (parallel sub-runnables, e.g. drawing_extract
+         doing 30 parallel Gemini calls)             → 600-900s
+      - Pipeline-style nodes that themselves invoke
+        sub-graphs synchronously                     → 900-1800s
+    Pick the maximum across the project's nodes — the dashboard
+    needs to tolerate the slowest legitimate node without
+    false-flagging it as idle. When uncertain, omit and the
+    dashboard uses 300s. Range: 60-1800.
 
 Respond with valid YAML matching this schema EXACTLY. No commentary, no
 markdown fences, no leading text:
@@ -157,6 +173,7 @@ run_clustering:                 # OMIT entirely if uncertain
   pattern: <JAVASCRIPT regex; first capture group = cluster key; or null>
   time_window_seconds: <int, default 300>
   run_label: <Run|Pipeline|Cycle|...>
+running_threshold_seconds: <int, 60-1800, OMIT for default 300>
 ```
 
 # Project metadata

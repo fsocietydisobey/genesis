@@ -150,3 +150,12 @@ class ProjectMetadata(BaseModel):
     # Project-specific run-clustering rules. Optional — when absent
     # the frontend uses a trailing-UUID + time-proximity heuristic.
     run_clustering: RunClustering | None = None
+    # How long a node can legitimately run without writing a new
+    # checkpoint before the dashboard considers the thread idle.
+    # Default 300s (5min) when omitted. Apps with slow LLM-bearing
+    # nodes (e.g. chimera's pipeline does 8min Claude calls) should
+    # bump this up; apps with fast nodes can lower it for tighter
+    # idle detection. The LLM scan derives this by inspecting node
+    # bodies — looking for LLM/HTTP/subprocess calls and their typical
+    # latency.
+    running_threshold_seconds: int | None = None
