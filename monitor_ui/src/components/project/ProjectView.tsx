@@ -120,24 +120,53 @@ export function ProjectView() {
     return ranked[0]?.thread_id ?? null;
   }, [threadsData]);
 
-  // Drop a stale manual selection when a fresh live run appears. Without
-  // this, clicking a run earlier in the day pins the focus indefinitely
-  // — even when that run finishes and a brand-new run starts, the
-  // dashboard keeps showing the stale finished one. The user has to
-  // hit "clear focus" manually.
+  // Drop a stale manual selection when fresh activity appears elsewhere.
   //
-  // Heuristic: if the manually-focused thread exists AND is idle AND
-  // there's a different live (running/paused/starting) thread, release
-  // the manual lock so auto-follow takes over. Don't release if the
-  // user just clicked (the manually-focused thread is still live) —
-  // that would yank them away from what they're inspecting.
+  // Two release triggers, both about "the user has moved on":
+  //
+  // 1. Focused thread is idle AND another live thread exists.
+  //    Classic case: clicked a run, it finished, a new one started.
+  //
+  // 2. Focused thread is technically still "running" by the heuristic,
+  //    BUT a SISTER THREAD (same scope_id — usually the same logical
+  //    multi-stage run, e.g. jeevy's deliverable progressing
+  //    ingest→digestion→output) has activity > 30s newer.
+  //    Real-world: clicked ingest #17 to inspect, ingest finished but
+  //    our running-threshold heuristic still classifies it running for
+  //    5min after the last checkpoint. Meanwhile digestion spawned and
+  //    is actively writing checkpoints. The user wants the dashboard
+  //    to follow the action across stage transitions, not stay
+  //    pinned on the finished stage.
+  //
+  // Don't release if the focused thread is still actively progressing
+  // — that would yank users away from runs they're watching.
   useEffect(() => {
     if (!userSelectedThreadId || !threadsData) return;
     const focused = threadsData.threads.find((t) => t.thread_id === userSelectedThreadId);
     if (!focused) return;
-    if (focused.status !== "idle") return;
-    if (!autoFocusedThreadId || autoFocusedThreadId === userSelectedThreadId) return;
-    setUserSelectedThreadId(null);
+
+    // Trigger 1 — focused is idle, fresh live alternative exists.
+    if (focused.status === "idle" && autoFocusedThreadId && autoFocusedThreadId !== userSelectedThreadId) {
+      setUserSelectedThreadId(null);
+      return;
+    }
+
+    // Trigger 2 — sister thread has overtaken focused in activity.
+    if (!focused.scope_id || !focused.last_updated) return;
+    const focusedTs = new Date(focused.last_updated).getTime();
+    if (!Number.isFinite(focusedTs)) return;
+
+    const liveSister = threadsData.threads.find((t) => {
+      if (t.thread_id === focused.thread_id) return false;
+      if (t.scope_id !== focused.scope_id) return false;
+      if (t.status === "idle") return false;
+      if (!t.last_updated) return false;
+      const ts = new Date(t.last_updated).getTime();
+      return Number.isFinite(ts) && ts - focusedTs > 30_000;
+    });
+    if (liveSister) {
+      setUserSelectedThreadId(null);
+    }
   }, [userSelectedThreadId, threadsData, autoFocusedThreadId]);
 
   const effectiveSelectedThreadId = userSelectedThreadId ?? autoFocusedThreadId;
