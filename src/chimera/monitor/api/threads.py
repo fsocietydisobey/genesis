@@ -412,28 +412,68 @@ def _derive_nodes(row: dict[str, Any]) -> tuple[str | None, list[str]]:
 
 
 # Window of activity that classifies a thread as "running" rather than
-# "idle". 30s was too aggressive — LLM-heavy nodes routinely take 60-
-# 180s between checkpoint writes, so those threads kept showing as
-# idle while genuinely executing. 300s tolerates slow nodes; the
-# staleness classifier on the frontend then picks up at 5min ("stale")
-# and 15min ("stuck") so finished runs that haven't aged out yet still
-# get flagged for inspection.
+# "idle" — used as the LAST resort when no definitive signal is
+# available (HITL interrupt, terminal __end__ write, etc. are checked
+# first). Set generously (5min) so LLM-heavy nodes between checkpoint
+# writes don't flicker to idle mid-execution; the frontend's staleness
+# classifier picks up at 5min ("stale") and 15min ("stuck") for runs
+# that genuinely hang. Won't false-flag finished runs because terminal
+# detection short-circuits before this fires.
 _RUNNING_THRESHOLD_SECONDS = 300.0
 
 
 def _derive_status(row: dict[str, Any]) -> str:
+    """Classify a thread's status using every signal available from the
+    checkpoint schema. Decision tree, in priority order:
+
+      1. `__interrupt__` channel set     → paused (HITL — time-independent;
+                                             a paused run can sit at the gate
+                                             for hours/days, that's normal)
+      2. source=input, step ≤ 0          → starting (graph just kicked off)
+      3. writes contains `__end__`       → idle (run reached the terminal
+                                             pseudo-node — definitively done)
+      4. activity within 5 min           → running (heuristic for in-flight,
+                                             tolerates slow LLM nodes between
+                                             checkpoint writes)
+      5. else                            → idle (no recent activity, no
+                                             terminal marker — likely
+                                             abandoned/errored; frontend's
+                                             staleness classifier gives the
+                                             user a "stuck" badge if the
+                                             situation warrants attention)
+
+    Note: We can't detect "Python is currently executing this node" from
+    the checkpoint table alone — between checkpoint commits the database
+    looks identical to "node finished a moment ago." The 5min window is
+    the practical floor; pair it with terminal detection so completed
+    runs flip to idle the instant `__end__` lands rather than waiting
+    out the window.
+    """
+    # 1. HITL pause — time-independent, can persist indefinitely.
     if row.get("is_paused"):
         return "paused"
 
+    # 2. Just-started graph.
     source = row.get("source")
     step = row.get("step")
     if source == "input" and (step is None or step <= 0):
         return "starting"
 
+    # 3. Terminal — graph reached __end__. Detected via the writes
+    # metadata which records what the latest super-step wrote. If
+    # `__end__` is among the keys, the END pseudo-node was reached.
+    writes = row.get("writes")
+    if isinstance(writes, dict) and "__end__" in writes:
+        return "idle"
+
+    # 4. Recent activity → in-flight (best-effort, tolerates slow nodes).
     last_updated = row.get("last_updated")
     if last_updated and _within_seconds(last_updated, _RUNNING_THRESHOLD_SECONDS):
         return "running"
 
+    # 5. Default — no clear signal of activity, treat as idle. The
+    # frontend's staleness classifier will flag this as "stuck" if a
+    # paused/running thread crosses the 15min threshold.
     return "idle"
 
 
