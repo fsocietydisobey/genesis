@@ -27,7 +27,9 @@ import { useMemo, useState } from "react";
 
 import type { RunClustering, ThreadStatus, ThreadSummary } from "@/api";
 import { useListThreadsQuery } from "@/api";
+import { StalenessBadge } from "@/components/project/StalenessBadge";
 import { Badge } from "@/components/ui/badge";
+import { getStaleness } from "@/lib/staleness";
 import { cn } from "@/lib/utils";
 
 const STATUS_DOT: Record<ThreadStatus, string> = {
@@ -682,6 +684,7 @@ function ThreadRow({
   onClick: () => void;
 }) {
   const detail = thread.stage_detail || "(direct)";
+  const staleness = getStaleness(thread);
   return (
     <li>
       <button
@@ -690,11 +693,15 @@ function ThreadRow({
         className={cn(
           "block w-full pl-7 pr-3 py-1.5 text-left text-[11px] hover:bg-accent/40 transition-colors",
           active && "bg-accent text-accent-foreground",
+          staleness === "stuck" && "border-l-2 border-l-rose-500",
+          staleness === "stale" && "border-l-2 border-l-amber-500",
+          staleness === "hitl-idle" && "border-l-2 border-l-amber-500/60",
         )}
       >
         <div className="flex items-center gap-1.5">
           <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[thread.status])} />
           <span className="font-mono truncate flex-1 min-w-0">{detail}</span>
+          <StalenessBadge staleness={staleness} lastUpdated={thread.last_updated} />
           <span
             className="text-[10px] text-muted-foreground/70 shrink-0"
             title={absoluteTime(thread.last_updated)}

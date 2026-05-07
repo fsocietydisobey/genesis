@@ -14,6 +14,8 @@ import type { ThreadStatus, ThreadSummary } from "@/api";
 import { useListThreadsQuery } from "@/api";
 import { Badge } from "@/components/ui/badge";
 import { deriveLabel } from "@/components/project/RunsSidebar";
+import { StalenessBadge } from "@/components/project/StalenessBadge";
+import { getStaleness, STALENESS_PRIORITY } from "@/lib/staleness";
 import { cn } from "@/lib/utils";
 
 const STATUS_DOT: Record<ThreadStatus, string> = {
@@ -68,10 +70,19 @@ export function LiveRunsCard({
   );
 
   const threads = data?.threads ?? [];
+  // Sort: stuck first, then stale, then hitl-idle, then fresh — within
+  // each tier, newest-updated first. Forces user attention to anything
+  // that needs it without burying healthy active runs.
   const live = threads
     .filter((t) => t.status === "running" || t.status === "paused" || t.status === "starting")
-    .sort((a, b) => (b.last_updated ?? "").localeCompare(a.last_updated ?? ""));
+    .sort((a, b) => {
+      const da = STALENESS_PRIORITY[getStaleness(a)];
+      const db = STALENESS_PRIORITY[getStaleness(b)];
+      if (da !== db) return da - db;
+      return (b.last_updated ?? "").localeCompare(a.last_updated ?? "");
+    });
 
+  const stuckCount = live.filter((t) => getStaleness(t) === "stuck").length;
   const idleCount = threads.length - live.length;
 
   // Drag state ------------------------------------------------------------
@@ -166,7 +177,17 @@ export function LiveRunsCard({
           <GripVertical className="h-3.5 w-3.5 text-muted-foreground/60" />
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">live runs</span>
         </div>
-        <Badge variant="outline" className="text-[10px]" data-no-drag>{live.length}</Badge>
+        <div className="flex items-center gap-1" data-no-drag>
+          {stuckCount > 0 ? (
+            <span
+              className="inline-flex items-center rounded border border-rose-500/50 bg-rose-500/15 px-1 text-[9px] font-mono text-rose-300 animate-pulse"
+              title={`${stuckCount} thread${stuckCount === 1 ? "" : "s"} appear stuck (>15 min since last update)`}
+            >
+              {stuckCount} stuck
+            </span>
+          ) : null}
+          <Badge variant="outline" className="text-[10px]">{live.length}</Badge>
+        </div>
       </div>
       {live.length === 0 ? (
         <p className="px-3 py-3 text-[11px] text-muted-foreground italic" data-no-drag>
@@ -208,6 +229,7 @@ function LiveRunRow({
   onClick: () => void;
 }) {
   const label = deriveLabel(thread);
+  const staleness = getStaleness(thread);
   return (
     <li>
       <button
@@ -216,11 +238,17 @@ function LiveRunRow({
         className={cn(
           "block w-full px-3 py-1.5 text-left text-xs hover:bg-accent/50 transition-colors",
           active && "bg-accent text-accent-foreground",
+          // Subtle left-border tint to make stuck/stale rows pop out of
+          // the live-runs list at a glance, even when scrolled.
+          staleness === "stuck" && "border-l-2 border-l-rose-500",
+          staleness === "stale" && "border-l-2 border-l-amber-500",
+          staleness === "hitl-idle" && "border-l-2 border-l-amber-500/60",
         )}
       >
         <div className="flex items-center gap-1.5">
           <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[thread.status])} />
-          <span className="font-medium truncate">{label.primary}</span>
+          <span className="font-medium truncate flex-1 min-w-0">{label.primary}</span>
+          <StalenessBadge staleness={staleness} lastUpdated={thread.last_updated} />
         </div>
         <div className="mt-0.5 ml-3 flex items-center gap-1.5 text-[10px] text-muted-foreground">
           {thread.current_node ? (
