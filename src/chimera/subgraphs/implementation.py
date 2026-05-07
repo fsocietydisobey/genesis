@@ -21,14 +21,21 @@ from chimera.nodes.balanced.arbitrator import build_arbitrator_node
 
 
 async def _guard_node(state: OrchestratorState) -> dict:
-    """Enforce plan_approved invariant before implementation."""
+    """Enforce plan_approved invariant before implementation.
+
+    Also resets the subgraph-local `implementation_loop_step` to 0 on
+    every subgraph entry. The parent pipeline may invoke this subgraph
+    multiple times across a single run; without this reset the loop
+    counter would accumulate and trigger an early "max iterations"
+    exit on the second invocation.
+    """
     if not require_plan_approved(state):
         history = list(state.get("history", []))
         return {
             "handoff_type": "plan_not_approved",
             "history": history + ["guard: blocked implementation — plan not approved"],
         }
-    return {}
+    return {"implementation_loop_step": 0}
 
 
 def _after_guard(state: OrchestratorState) -> str:
@@ -39,20 +46,30 @@ def _after_guard(state: OrchestratorState) -> str:
 
 
 def _after_arbitrator(state: OrchestratorState) -> str:
-    """Route based on Arbitrator's arbitration decision."""
+    """Route based on Arbitrator's arbitration decision.
+
+    Returns one of: "implement" (rework loop), "compliance" (proceed).
+    Both must be keys in the conditional-edges mapping below.
+    """
     arb = state.get("arbitration_decision") or {}
     handoff = state.get("handoff_type", "")
 
-    # Stress Tester blocker or Arbitrator says rework needed
+    # Stress Tester blocker or Arbitrator says rework needed.
+    # Note: arbitrator clears handoff_type to "ready_for_review" when
+    # needs_rework=False, so the OR clause is informational redundancy
+    # rather than a separate signal — but keeping it as a defense in
+    # depth in case some other node sets tests_failing in the future.
     if arb.get("needs_rework") or handoff == "tests_failing":
-        # Check step limit
-        step = state.get("phase_step", 0)
+        # Self-bound the loop using the subgraph-local counter. Without
+        # this cap the loop runs until LangGraph's recursion_limit
+        # kills it — which is what bug-report 2026-05-07 surfaced.
+        step = state.get("implementation_loop_step", 0)
         max_steps = state.get("max_phase_steps", 5)
         if step >= max_steps:
-            return "hod"  # Max steps — format what we have and exit
+            return "compliance"  # Max iterations — ship what we have
         return "implement"  # Loop back for rework
 
-    return "hod"  # Proceed to formatting
+    return "compliance"  # Proceed to formatting
 
 
 def build_implementation_subgraph(

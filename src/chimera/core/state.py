@@ -132,6 +132,14 @@ class OrchestratorState(TypedDict, total=False):
     phase_step: int  # Current step within the active phase
     max_phase_steps: int  # Max steps allowed for the active phase
 
+    # Implementation subgraph's internal rework-loop counter. Distinct
+    # from `phase_step` because the implementation subgraph runs as a
+    # single super-step from the parent pipeline's perspective — its
+    # internal `implement → stress → scope → arbitrate` loop needs its
+    # own counter so the loop can self-bound. Reset on subgraph entry,
+    # bumped by arbitrator each loop iteration.
+    implementation_loop_step: int  # 0 on entry; bumped per arbitrate iteration
+
     # Persistent memory
     memory_context: str  # Injected context from past runs
 

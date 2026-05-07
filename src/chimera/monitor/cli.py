@@ -109,6 +109,20 @@ def _cmd_start(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_restart(args: argparse.Namespace) -> int:
+    """Stop the daemon (if running) then start. Tolerates no-PID-file."""
+    import time
+
+    # Best-effort stop — don't bail if there's nothing running.
+    try:
+        _cmd_stop(args)
+    except SystemExit:
+        pass
+    # Brief pause so OS-level socket cleanup completes before rebind.
+    time.sleep(1)
+    return _cmd_start(args)
+
+
 def _cmd_stop(args: argparse.Namespace) -> int:
     pid = _read_pid()
     if pid is None:
@@ -211,6 +225,14 @@ def main() -> None:
 
     p_stop = sub.add_parser("stop", help="Stop the monitor daemon")
     p_stop.set_defaults(func=_cmd_stop)
+
+    # Convenience: stop + start in one command. Saves typing during
+    # development when monitor backend changes need a fresh daemon
+    # to take effect (e.g. after a `git pull`).
+    p_restart = sub.add_parser("restart", help="Stop then start the monitor daemon")
+    p_restart.add_argument("--foreground", action="store_true", help="Run in foreground (no fork)")
+    p_restart.add_argument("--no-browser", action="store_true", help="Don't open the browser")
+    p_restart.set_defaults(func=_cmd_restart)
 
     p_status = sub.add_parser("status", help="Report daemon status")
     p_status.set_defaults(func=_cmd_status)

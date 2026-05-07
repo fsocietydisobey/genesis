@@ -156,9 +156,16 @@ def build_arbitrator_node(model: BaseChatModel):
             f"needs_rework={decision.needs_rework}"
         )
 
+        # Bump the implementation-subgraph loop counter so the routing
+        # function can self-bound after `max_phase_steps` iterations.
+        # Without this, the loop runs until LangGraph's recursion_limit
+        # forces termination.
+        loop_step = state.get("implementation_loop_step", 0) + 1
+
         result: dict = {
             "arbitration_decision": decision_dict,
             "history": history + [history_entry],
+            "implementation_loop_step": loop_step,
         }
 
         # If rework needed, append accepted changes to validation_feedback
@@ -171,8 +178,14 @@ def build_arbitrator_node(model: BaseChatModel):
                 if existing_feedback else arbitration_feedback
             )
             result["handoff_type"] = "tests_failing"  # Force rework
-        elif state.get("handoff_type") != "tests_failing":
-            # Don't override a Stress Tester blocker handoff
+        else:
+            # Arbitrator decided to proceed — the arbitration IS the final
+            # call. Clear any stale "tests_failing" set by stress_tester
+            # earlier in this iteration so the routing function actually
+            # exits the loop. The previous `elif != tests_failing` paranoia
+            # caused infinite loops (handoff_type stuck at tests_failing
+            # while needs_rework=False forced re-entry to implement via the
+            # OR clause in _after_arbitrator).
             result["handoff_type"] = "ready_for_review"
 
         return result
