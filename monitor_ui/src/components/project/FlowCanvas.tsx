@@ -561,14 +561,12 @@ function FlowInner({
     return () => cancelAnimationFrame(id);
   }, [selectedGraph, nodeCount, fitView]);
 
-  // When a thread is focused and its current_node changes, zoom into
-  // that node so the user can see exactly where the run is. Runs after
-  // the fit-view above so it overrides the wider zoom level.
-  // focusZoom = 0 disables the auto-pan entirely (keep current viewport).
-  // Ghost mode also disables it — the user wants to see all numbered
-  // fired nodes simultaneously, not zoomed in on one.
+  // When the active node changes, pan + zoom into it. Ghost mode no
+  // longer suppresses this — clicking a step in RunStepsCard should
+  // take the user to that node, and continuous play should follow the
+  // lit node through the run. focusZoom = 0 still opts out entirely.
   useEffect(() => {
-    if (ghostMode || !activeNodeId || focusZoom === 0) return;
+    if (!activeNodeId || focusZoom === 0) return;
     const target = nodes.find((n) => n.id === activeNodeId);
     if (!target) return;
     const id = requestAnimationFrame(() => {
@@ -577,16 +575,24 @@ function FlowInner({
       setCenter(cx, cy, { zoom: focusZoom, duration: 600 });
     });
     return () => cancelAnimationFrame(id);
-  }, [activeNodeId, nodes, setCenter, focusZoom, ghostMode]);
+  }, [activeNodeId, nodes, setCenter, focusZoom]);
 
-  // When ghost mode flips on, fitView so every numbered node is visible.
+  // When ghost mode FIRST flips on (and we're not actively scrubbing),
+  // fitView once so the user sees the whole numbered map. Subsequent
+  // step interactions take over via the auto-pan above.
+  const ghostJustActivatedRef = useRef(ghostMode);
   useEffect(() => {
     if (!ghostMode || nodes.length === 0) return;
+    if (ghostJustActivatedRef.current) return; // already fit
+    ghostJustActivatedRef.current = true;
     const id = requestAnimationFrame(() => {
       fitView({ padding: 0.2, duration: 400 });
     });
     return () => cancelAnimationFrame(id);
   }, [ghostMode, fitView, nodes.length]);
+  useEffect(() => {
+    if (!ghostMode) ghostJustActivatedRef.current = false;
+  }, [ghostMode]);
 
   return (
     <div ref={wrapperRef} className="h-full w-full">

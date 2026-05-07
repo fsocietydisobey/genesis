@@ -25,6 +25,7 @@ import { LiveRunsCard } from "@/components/project/LiveRunsCard";
 import { NodeInspector } from "@/components/project/NodeInspector";
 import { ReplayController, type ReplayState } from "@/components/project/ReplayController";
 import { RunsDrawer } from "@/components/project/RunsDrawer";
+import { RunStepsCard } from "@/components/project/RunStepsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRunCheckpoints } from "@/lib/useRunCheckpoints";
 import { cn } from "@/lib/utils";
@@ -398,6 +399,34 @@ export function ProjectView() {
                 }
                 totalSteps={runCheckpoints.length > 0 ? runCheckpoints.length : null}
                 inReplay={replayState.index !== null}
+              />
+              <RunStepsCard
+                visible={ghostMode}
+                checkpoints={runCheckpoints}
+                activeIndex={
+                  replayState.index !== null
+                    ? replayState.index
+                    : runCheckpoints.length > 0
+                      ? runCheckpoints.length - 1
+                      : null
+                }
+                resolveGraphLabel={(threadId) => {
+                  const graphName = threadToGraph.get(threadId);
+                  if (!graphName || !topology) return null;
+                  const g = topology.graphs.find((gg) => gg.name === graphName);
+                  return g ? g.label || g.name : null;
+                }}
+                onSelectStep={(i) => {
+                  // Jump replay to this step + pause. The auto-tab effect
+                  // in ProjectFlow will follow the new active node into
+                  // its graph; if the step belongs to a sister thread,
+                  // its node still resolves via the cross-graph lookup.
+                  setReplayState((prev) => ({
+                    index: i,
+                    playing: false,
+                    speedMs: prev.speedMs,
+                  }));
+                }}
               />
             </>
           ) : null}
