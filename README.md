@@ -232,6 +232,33 @@ The server runs over stdio — it's meant to be connected to an MCP client, not 
 
 ---
 
+## Monitor — observability dashboard for any LangGraph project
+
+CHIMERA ships with **chimera-monitor**, a local web dashboard that auto-discovers LangGraph projects on your machine, introspects their topology, and tails their checkpointer to surface live state. Works against CHIMERA itself, jeevy, or any other LangGraph app — no per-project code required.
+
+What you get:
+
+- **n8n-style canvas** — every compiled graph rendered with cluster backgrounds and cross-graph "invokes" edges
+- **Live thread highlighting** — current node pulses; "lock to all" view lights up every active run simultaneously
+- **Multi-thread replay** — scrub through checkpoint history per thread, or merge sister threads into one chronological "play this run start to end" timeline
+- **Ghost overlay** — every node that fired in a run, numbered in execution order, with a draggable step-list card that doubles as a navigation index
+- **Per-step diff inspector** — click any node, see what state changed (vs full-state dump)
+- **Metadata-driven** — Claude Opus scans each project's source + sample thread_ids to derive scope labels, thread parsing, and run clustering rules. No hardcoded conventions
+
+Install the optional extras and start:
+
+```bash
+uv pip install 'chimera[monitor]'
+chimera monitor start         # Daemonizes; auto-builds frontend if stale
+chimera monitor rescan <project>   # Refresh metadata cache
+chimera monitor status
+chimera monitor stop
+```
+
+Default port: **8740** (`CHIMERA_MONITOR_PORT` to override). Binds `127.0.0.1` only — never exposed externally.
+
+---
+
 ## Connect to an Editor
 
 ### Cursor
