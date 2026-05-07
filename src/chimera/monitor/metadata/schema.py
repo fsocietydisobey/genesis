@@ -85,6 +85,38 @@ class ThreadGrouping(BaseModel):
     examples: list[str] = Field(default_factory=list)
 
 
+class NodeStats(BaseModel):
+    """Empirical statistics for one node, derived by the observation
+    collector from accumulated checkpoint history."""
+
+    visits: int = 0
+    duration_p50: float = 0.0
+    duration_p95: float = 0.0
+    duration_max: float = 0.0
+
+
+class GraphObservations(BaseModel):
+    """Per-graph runtime observations. The current collector aggregates
+    everything under a single `_aggregate` bucket; future iterations may
+    split per-graph if node-name collisions become a problem."""
+
+    nodes: dict[str, NodeStats] = Field(default_factory=dict)
+    # How often each node was seen as the latest current_node when its
+    # thread reached a settled state. Strong empirical signal for
+    # "where this graph tends to end."
+    end_node_counts: dict[str, int] = Field(default_factory=dict)
+
+
+class RuntimeObservations(BaseModel):
+    """Cumulative runtime observations for a project. Persisted in a
+    separate file from the LLM-derived metadata so the two cadences
+    don't race."""
+
+    last_collected_at: str
+    samples_seen: int = 0
+    graphs: dict[str, GraphObservations] = Field(default_factory=dict)
+
+
 RunClusterSourceField = Literal["thread_id", "scope_id", "stage", "stage_detail"]
 
 
