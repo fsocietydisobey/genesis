@@ -31,7 +31,7 @@ from ..discovery.redaction import redact
 from ..discovery.state_decoder import decode
 from ..discovery.thread_grouping import parse_grouping
 from ..metadata import cache as meta_cache
-from ..metadata.schema import ProjectMetadata, ThreadGrouping
+from ..metadata.schema import ProjectMetadata, RunClustering, ThreadGrouping
 
 # ---------------------------------------------------------------------------
 # Postgres SQL
@@ -123,17 +123,21 @@ def build_router(connections_by_project: dict[Path, Connections], projects: list
             sqlite=discover_sqlite(path),
         )
 
-    def _grouping_for(name: str) -> ThreadGrouping | None:
-        """Read the project's metadata cache to get the LLM-derived
-        thread grouping rules, if any. Returns None when no scan has
-        landed yet — caller falls back to the heuristic."""
+    def _metadata_for(name: str) -> ProjectMetadata | None:
+        """Load the project's metadata cache. Returns None when no scan
+        has landed yet — callers fall back to heuristic defaults."""
         path = name_to_path.get(name)
         if path is None:
             return None
-        metadata: ProjectMetadata | None = meta_cache.load(path)
-        if metadata is None:
-            return None
-        return metadata.thread_grouping
+        return meta_cache.load(path)
+
+    def _grouping_for(name: str) -> ThreadGrouping | None:
+        meta = _metadata_for(name)
+        return meta.thread_grouping if meta else None
+
+    def _run_clustering_for(name: str) -> RunClustering | None:
+        meta = _metadata_for(name)
+        return meta.run_clustering if meta else None
 
     @router.get("/threads/{name}")
     async def list_threads(name: str, limit: int = 50, offset: int = 0, since: str | None = None):
@@ -146,12 +150,17 @@ def build_router(connections_by_project: dict[Path, Connections], projects: list
 
         rows = await _list_threads(conns, since, limit, offset)
         grouping = _grouping_for(name)
+        run_clustering = _run_clustering_for(name)
         return {
             "project": name,
             "limit": limit,
             "offset": offset,
             "since": since,
             "scope_label": (grouping.scope_label if grouping else "Run"),
+            # When absent, the frontend applies its built-in heuristic
+            # (trailing-UUID + 5min proximity). Always serialized so the
+            # frontend can tell "no rule yet" from "explicit no-cluster".
+            "run_clustering": (run_clustering.model_dump() if run_clustering else None),
             "threads": [_serialize_thread(r, grouping) for r in rows],
         }
 

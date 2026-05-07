@@ -85,6 +85,47 @@ class ThreadGrouping(BaseModel):
     examples: list[str] = Field(default_factory=list)
 
 
+RunClusterSourceField = Literal["thread_id", "scope_id", "stage", "stage_detail"]
+
+
+class RunClustering(BaseModel):
+    """How sister threads should be clustered into 'runs' — a logical
+    execution pass that may span multiple threads.
+
+    Applied AFTER `thread_grouping` has parsed each thread_id into
+    fields. The cluster key is extracted by running `pattern` against
+    the value of `source_field`; the FIRST capture group becomes the
+    key. Threads with matching keys cluster together. Threads where
+    the pattern doesn't match fall into time-proximity grouping
+    bounded by `time_window_seconds`.
+
+    Examples:
+      - jeevy `deliverable:<uuid>:digestion:<run-uuid>` — sister threads
+        share a trailing UUID in `stage_detail`:
+          source_field: stage_detail
+          pattern: "([0-9a-f-]{36})$"
+      - apps using serial run numbers like `pipeline:run-42`:
+          source_field: stage_detail
+          pattern: "run-(\\d+)"
+      - apps with no shared run id — purely time-bucketed:
+          source_field: thread_id
+          pattern: null
+
+    The `pattern` MUST use JavaScript-compatible regex syntax (the
+    frontend executes it via `RegExp`). First capture group is the
+    cluster key. Use `null` to skip pattern matching and rely solely
+    on time proximity.
+    """
+
+    source_field: RunClusterSourceField = "stage_detail"
+    pattern: str | None = None
+    time_window_seconds: int = 300
+    # Display label for a cluster row in the sidebar (e.g. "Run",
+    # "Pipeline", "Cycle"). Distinct from `ThreadGrouping.scope_label`
+    # which labels the higher-level scope group.
+    run_label: str = "Run"
+
+
 class ProjectMetadata(BaseModel):
     """The full cache document for one project."""
 
@@ -106,3 +147,6 @@ class ProjectMetadata(BaseModel):
     # the backend falls back to the generic heuristic in
     # discovery/thread_grouping.py.
     thread_grouping: ThreadGrouping | None = None
+    # Project-specific run-clustering rules. Optional — when absent
+    # the frontend uses a trailing-UUID + time-proximity heuristic.
+    run_clustering: RunClustering | None = None

@@ -69,12 +69,29 @@ export interface ThreadSummary {
   stage_detail: string;
 }
 
+/**
+ * Project-specific run-clustering rule, derived by the LLM scan from
+ * sample thread_ids and codebase context. Null when no scan has landed
+ * yet — UI falls back to a trailing-UUID + 5min heuristic.
+ *
+ * Pattern is JavaScript regex; first capture group is the cluster key.
+ * Threads where the pattern matches and produces the same key cluster
+ * together. Misses fall into time-proximity grouping.
+ */
+export interface RunClustering {
+  source_field: "thread_id" | "scope_id" | "stage" | "stage_detail";
+  pattern: string | null;
+  time_window_seconds: number;
+  run_label: string;
+}
+
 export interface ThreadsResponse {
   project: string;
   limit: number;
   offset: number;
   since: string | null;
   scope_label: string;             // "Deliverable", "Run", "Chain", ...
+  run_clustering: RunClustering | null;
   threads: ThreadSummary[];
 }
 

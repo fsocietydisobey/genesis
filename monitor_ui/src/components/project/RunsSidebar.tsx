@@ -25,7 +25,7 @@
 
 import { useMemo, useState } from "react";
 
-import type { ThreadStatus, ThreadSummary } from "@/api";
+import type { RunClustering, ThreadStatus, ThreadSummary } from "@/api";
 import { useListThreadsQuery } from "@/api";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -230,6 +230,7 @@ export function RunsSidebar({ projectName, selectedThreadId, onSelectThread, onS
   }, [data, query, sort]);
 
   const scopeLabel = data?.scope_label || "Run";
+  const runClustering = data?.run_clustering ?? null;
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-card/40">
@@ -266,6 +267,7 @@ export function RunsSidebar({ projectName, selectedThreadId, onSelectThread, onS
               key={bucket.label}
               label={bucket.label}
               scopeLabel={scopeLabel}
+              runClustering={runClustering}
               groups={bucket.groups}
               selectedThreadId={selectedThreadId}
               onSelectThread={onSelectThread}
@@ -282,6 +284,7 @@ export function RunsSidebar({ projectName, selectedThreadId, onSelectThread, onS
 function DateBucket({
   label,
   scopeLabel,
+  runClustering,
   groups,
   selectedThreadId,
   onSelectThread,
@@ -290,6 +293,7 @@ function DateBucket({
 }: {
   label: string;
   scopeLabel: string;
+  runClustering: RunClustering | null;
   groups: ScopeGroup[];
   selectedThreadId: string | null;
   onSelectThread: (threadId: string | null) => void;
@@ -316,6 +320,7 @@ function DateBucket({
             <ScopeRow
               key={`${group.scopeKind}/${group.scopeId}`}
               scopeLabel={scopeLabel}
+              runClustering={runClustering}
               group={group}
               selectedThreadId={selectedThreadId}
               onSelectThread={onSelectThread}
@@ -329,17 +334,27 @@ function DateBucket({
 }
 
 // Threads within a scope are clustered into "runs" — a logical execution
-// pass that may span multiple stages. Two heuristics, applied in order:
-//   1. UUID match: threads whose stage_detail ends with the same UUID
-//      (jeevy's orchestrator UUID pattern) cluster together.
-//   2. Time proximity: within RUN_GAP_MS of each other → same cluster.
-// Result: an ingest at 3:56 + a digestion at 3:57 + an output at 3:57
-// all surface as one "Run" entry instead of three scattered rows.
-const RUN_GAP_MS = 5 * 60 * 1000;
-const TRAILING_UUID_RE = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+// pass that may span multiple stages. Two strategies, applied in order:
+//   1. Pattern match: extract a cluster key from one of the parsed
+//      fields using the project's metadata rule. Threads with matching
+//      keys cluster together.
+//   2. Time proximity: pattern-misses cluster with the nearest
+//      key-having cluster within `time_window_seconds`, else become
+//      their own time-bucketed cluster.
+//
+// The rule comes from the LLM-derived `run_clustering` metadata, with
+// a hardcoded fallback (trailing UUID in stage_detail + 5 min) used
+// when no scan has landed yet.
+
+const HEURISTIC_FALLBACK: RunClustering = {
+  source_field: "stage_detail",
+  pattern: "([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$",
+  time_window_seconds: 300,
+  run_label: "Run",
+};
 
 interface RunCluster {
-  /** Stable display key — UUID prefix or a synthesized timestamp tag. */
+  /** Stable display key — extracted cluster key or synthesized fallback. */
   key: string;
   /** Short label shown to the user. */
   label: string;
@@ -348,50 +363,84 @@ interface RunCluster {
   latest: string | null;
 }
 
-function clusterThreadsIntoRuns(threads: ThreadSummary[]): RunCluster[] {
+/** Read the configured field's value off a thread row. */
+function fieldValue(thread: ThreadSummary, field: RunClustering["source_field"]): string {
+  switch (field) {
+    case "thread_id": return thread.thread_id;
+    case "scope_id": return thread.scope_id;
+    case "stage": return thread.stage;
+    case "stage_detail": return thread.stage_detail;
+  }
+}
+
+function clusterThreadsIntoRuns(
+  threads: ThreadSummary[],
+  rule: RunClustering | null,
+): RunCluster[] {
+  const effective = rule ?? HEURISTIC_FALLBACK;
+  // Compile pattern once. Bad regex from the LLM shouldn't break the
+  // sidebar — fall back to time-only bucketing when compilation fails.
+  let regex: RegExp | null = null;
+  if (effective.pattern) {
+    try {
+      regex = new RegExp(effective.pattern);
+    } catch {
+      regex = null;
+    }
+  }
+  const windowMs = Math.max(0, effective.time_window_seconds) * 1000;
+
   // Sort once newest-first; everything below assumes that order.
   const sorted = [...threads].sort(
     (a, b) => (b.last_updated ?? "").localeCompare(a.last_updated ?? ""),
   );
 
-  // Step 1 — bucket by trailing UUID in stage_detail.
-  const byUuid = new Map<string, ThreadSummary[]>();
-  const noUuid: ThreadSummary[] = [];
+  // Step 1 — bucket by extracted cluster key.
+  const byKey = new Map<string, ThreadSummary[]>();
+  const noKey: ThreadSummary[] = [];
   for (const t of sorted) {
-    const m = TRAILING_UUID_RE.exec(t.stage_detail || "");
-    if (m) {
-      const uuid = m[1];
-      if (!byUuid.has(uuid)) byUuid.set(uuid, []);
-      byUuid.get(uuid)!.push(t);
+    const value = fieldValue(t, effective.source_field) || "";
+    const m = regex ? regex.exec(value) : null;
+    const key = m ? (m[1] ?? m[0]) : null;
+    if (key) {
+      if (!byKey.has(key)) byKey.set(key, []);
+      byKey.get(key)!.push(t);
     } else {
-      noUuid.push(t);
+      noKey.push(t);
     }
   }
 
   const clusters: RunCluster[] = [];
-  for (const [uuid, ts] of byUuid.entries()) {
+  for (const [key, ts] of byKey.entries()) {
+    // Truncate to 8 chars for display when key looks UUID-ish, else
+    // keep the key as-is up to a sensible width.
+    const display = key.length > 12 ? `${key.slice(0, 8)}…` : key;
     clusters.push({
-      key: `uuid:${uuid}`,
-      label: `Run ${uuid.slice(0, 8)}…`,
+      key: `key:${key}`,
+      label: `${effective.run_label} ${display}`,
       threads: ts,
       latest: ts[0]?.last_updated ?? null,
     });
   }
 
-  // Step 2 — for the no-UUID stragglers (e.g. ingest:13), attach each
-  // to a uuid cluster if there's one within RUN_GAP_MS, else group by
-  // proximity into their own clusters.
-  for (const t of noUuid) {
+  // Step 2 — pattern-misses attach to nearest key-cluster within the
+  // configured window, else become their own time-bucketed cluster.
+  for (const t of noKey) {
     const tTime = t.last_updated ? new Date(t.last_updated).getTime() : null;
-    if (tTime === null) {
-      clusters.push({ key: `solo:${t.thread_id}`, label: `Run`, threads: [t], latest: null });
+    if (tTime === null || windowMs === 0) {
+      clusters.push({
+        key: `solo:${t.thread_id}`,
+        label: effective.run_label,
+        threads: [t],
+        latest: t.last_updated,
+      });
       continue;
     }
     let attached = false;
     for (const c of clusters) {
       const cTime = c.latest ? new Date(c.latest).getTime() : null;
       if (cTime === null) continue;
-      if (Math.abs(cTime - tTime) <= RUN_GAP_MS) {
+      if (Math.abs(cTime - tTime) <= windowMs) {
         c.threads.push(t);
         c.threads.sort((a, b) => (b.last_updated ?? "").localeCompare(a.last_updated ?? ""));
         if ((t.last_updated ?? "") > (c.latest ?? "")) c.latest = t.last_updated;
@@ -400,10 +449,9 @@ function clusterThreadsIntoRuns(threads: ThreadSummary[]): RunCluster[] {
       }
     }
     if (!attached) {
-      // Standalone — its own cluster, label by timestamp
       clusters.push({
         key: `time:${t.thread_id}`,
-        label: `Run @ ${absoluteTime(t.last_updated)}`,
+        label: `${effective.run_label} @ ${absoluteTime(t.last_updated)}`,
         threads: [t],
         latest: t.last_updated,
       });
@@ -417,12 +465,14 @@ function clusterThreadsIntoRuns(threads: ThreadSummary[]): RunCluster[] {
 
 function ScopeRow({
   scopeLabel,
+  runClustering,
   group,
   selectedThreadId,
   onSelectThread,
   onSelectRun,
 }: {
   scopeLabel: string;
+  runClustering: RunClustering | null;
   group: ScopeGroup;
   selectedThreadId: string | null;
   onSelectThread: (threadId: string | null) => void;
@@ -430,7 +480,10 @@ function ScopeRow({
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  const clusters = useMemo(() => clusterThreadsIntoRuns(group.threads), [group.threads]);
+  const clusters = useMemo(
+    () => clusterThreadsIntoRuns(group.threads, runClustering),
+    [group.threads, runClustering],
+  );
   const stagesOverall = useMemo(() => {
     const m = new Map<string, number>();
     for (const t of group.threads) m.set(t.stage || "(direct)", (m.get(t.stage || "(direct)") ?? 0) + 1);

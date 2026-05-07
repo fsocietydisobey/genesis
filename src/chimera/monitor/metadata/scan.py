@@ -84,6 +84,42 @@ with semantic information that the AST cannot infer:
     "Deliverable", "Run", "Chain"). When uncertain or no thread_ids exist
     yet, omit `thread_grouping` entirely — the dashboard will use a
     generic heuristic until the next scan.
+  - Determine `run_clustering`: how sister threads are grouped into
+    a "run" — a single logical execution pass. A run may span multiple
+    threads (e.g. ingest → digestion → output), each appearing as a
+    separate thread_id but sharing a common identifier somewhere in
+    their parsed fields. The dashboard uses this to nest threads under
+    a single "Run abc..." card so users see one work unit, not three
+    scattered rows.
+
+    The rule has two parts:
+      `pattern`     — a JAVASCRIPT-COMPATIBLE regex (NOT Python's
+                      `(?P<...>)` syntax). The FIRST CAPTURE GROUP
+                      becomes the cluster key. Threads where this
+                      pattern matches and produces the same key are
+                      clustered together.
+      `source_field` — which field to apply the pattern to. One of:
+                      "thread_id" (the full id), "scope_id", "stage",
+                      or "stage_detail" (the parsed grouping fields).
+
+    Plus a fallback: `time_window_seconds` (default 300) groups
+    pattern-misses by time proximity. Use 0 to disable.
+
+    Examples:
+      - jeevy: trailing UUID in stage_detail (`digestion:<run-uuid>`):
+          source_field: stage_detail
+          pattern: "([0-9a-f-]{{36}})$"
+          run_label: "Run"
+      - apps with serial run numbers (`pipeline:run-42`):
+          source_field: stage_detail
+          pattern: "run-(\\d+)"
+      - chimera: bare-uuid threads have no shared run id; rely on time
+        proximity only:
+          source_field: thread_id
+          pattern: null
+          time_window_seconds: 300
+    When uncertain, omit `run_clustering` entirely — the dashboard
+    will use a trailing-UUID + 5-min heuristic.
 
 Respond with valid YAML matching this schema EXACTLY. No commentary, no
 markdown fences, no leading text:
@@ -116,6 +152,11 @@ thread_grouping:                # OMIT entirely if uncertain
     - pattern: <python regex with named groups scope_id, [stage], [stage_detail]>
       scope_kind: <static label, e.g. "deliverable">
       stage: <static stage label, OMIT if regex captures it>
+run_clustering:                 # OMIT entirely if uncertain
+  source_field: <thread_id|scope_id|stage|stage_detail>
+  pattern: <JAVASCRIPT regex; first capture group = cluster key; or null>
+  time_window_seconds: <int, default 300>
+  run_label: <Run|Pipeline|Cycle|...>
 ```
 
 # Project metadata
