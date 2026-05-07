@@ -25,6 +25,7 @@ from typing import Any
 import re
 
 from .._optional import require
+from ..discovery import ast_walker
 from ..discovery.connections import Connections, PostgresConnection, SqliteConnection, discover_sqlite
 from ..discovery.project import Project
 from ..discovery.redaction import redact
@@ -139,6 +140,50 @@ def build_router(connections_by_project: dict[Path, Connections], projects: list
         meta = _metadata_for(name)
         return meta.run_clustering if meta else None
 
+    # Topology-derived terminal-node names per project. A node is
+    # "terminal" when its only outgoing edges go to `__end__` (or it
+    # has no outgoing edges at all in any graph). Used by _derive_status
+    # to flip a thread to idle the moment it reaches the graph's end —
+    # without this, threads sit at "running" until the heuristic 5min
+    # window expires, which lies for runs that have actually finished.
+    #
+    # Cached lazily per project; AST extraction is fast (<200ms) but
+    # not free.
+    _terminal_cache: dict[str, frozenset[str]] = {}
+
+    def _terminal_nodes_for(name: str) -> frozenset[str]:
+        cached = _terminal_cache.get(name)
+        if cached is not None:
+            return cached
+        path = name_to_path.get(name)
+        if path is None:
+            _terminal_cache[name] = frozenset()
+            return _terminal_cache[name]
+        try:
+            results = ast_walker.extract_from_path(path)
+        except Exception:
+            _terminal_cache[name] = frozenset()
+            return _terminal_cache[name]
+        terminal: set[str] = set()
+        for r in results:
+            if not r.nodes or not r.edges:
+                continue
+            # Build outgoing-edges map for this graph.
+            out: dict[str, set[str]] = {}
+            for src, dst in r.edges:
+                out.setdefault(src, set()).add(dst)
+            for node in r.nodes:
+                if node in {"__start__", "__input__", "__end__", "__interrupt__"}:
+                    continue
+                targets = out.get(node)
+                # No outgoing edges = terminal. Or every outgoing edge
+                # goes to __end__ = terminal.
+                if not targets or targets <= {"__end__"}:
+                    terminal.add(node)
+        result = frozenset(terminal)
+        _terminal_cache[name] = result
+        return result
+
     @router.get("/threads/{name}")
     async def list_threads(name: str, limit: int = 50, offset: int = 0, since: str | None = None):
         conns = _live_connections(name)
@@ -151,6 +196,7 @@ def build_router(connections_by_project: dict[Path, Connections], projects: list
         rows = await _list_threads(conns, since, limit, offset)
         grouping = _grouping_for(name)
         run_clustering = _run_clustering_for(name)
+        terminals = _terminal_nodes_for(name)
         return {
             "project": name,
             "limit": limit,
@@ -161,7 +207,7 @@ def build_router(connections_by_project: dict[Path, Connections], projects: list
             # (trailing-UUID + 5min proximity). Always serialized so the
             # frontend can tell "no rule yet" from "explicit no-cluster".
             "run_clustering": (run_clustering.model_dump() if run_clustering else None),
-            "threads": [_serialize_thread(r, grouping) for r in rows],
+            "threads": [_serialize_thread(r, grouping, terminals) for r in rows],
         }
 
     @router.get("/threads/{name}/{thread_id}")
@@ -322,7 +368,11 @@ def _decode_metadata(type_str: str | None, blob: bytes | None) -> Any:
 _SPECIAL_NODES = frozenset({"__input__", "__start__", "__interrupt__", "__end__"})
 
 
-def _serialize_thread(row: dict[str, Any], grouping: ThreadGrouping | None = None) -> dict[str, Any]:
+def _serialize_thread(
+    row: dict[str, Any],
+    grouping: ThreadGrouping | None = None,
+    terminal_nodes: frozenset[str] = frozenset(),
+) -> dict[str, Any]:
     current_node, recent_nodes = _derive_nodes(row)
     grouping_fields = _resolve_grouping(row["thread_id"], grouping)
     return {
@@ -330,7 +380,7 @@ def _serialize_thread(row: dict[str, Any], grouping: ThreadGrouping | None = Non
         "latest_checkpoint_id": row["latest_checkpoint_id"],
         "last_updated": row.get("last_updated"),
         "step": row.get("step"),
-        "status": _derive_status(row),
+        "status": _derive_status(row, current_node=current_node, terminal_nodes=terminal_nodes),
         "current_node": current_node,
         "recent_nodes": recent_nodes,
         "agent_profile": row.get("agent_profile"),
@@ -422,7 +472,11 @@ def _derive_nodes(row: dict[str, Any]) -> tuple[str | None, list[str]]:
 _RUNNING_THRESHOLD_SECONDS = 300.0
 
 
-def _derive_status(row: dict[str, Any]) -> str:
+def _derive_status(
+    row: dict[str, Any],
+    current_node: str | None = None,
+    terminal_nodes: frozenset[str] = frozenset(),
+) -> str:
     """Classify a thread's status using every signal available from the
     checkpoint schema. Decision tree, in priority order:
 
@@ -430,8 +484,16 @@ def _derive_status(row: dict[str, Any]) -> str:
                                              a paused run can sit at the gate
                                              for hours/days, that's normal)
       2. source=input, step ≤ 0          → starting (graph just kicked off)
-      3. writes contains `__end__`       → idle (run reached the terminal
-                                             pseudo-node — definitively done)
+      3a. writes contains `__end__`      → idle (some LangGraph versions
+                                             populate metadata.writes)
+      3b. current_node is a terminal     → idle (topology-derived: nodes
+          (only edge → __end__)              whose only outgoing edges go to
+                                             __end__. This is the load-
+                                             bearing terminal signal because
+                                             metadata.writes is `null` in
+                                             jeevy's LangGraph — the
+                                             writes-based detection in 3a
+                                             never fires there.)
       4. activity within 5 min           → running (heuristic for in-flight,
                                              tolerates slow LLM nodes between
                                              checkpoint writes)
@@ -446,7 +508,7 @@ def _derive_status(row: dict[str, Any]) -> str:
     the checkpoint table alone — between checkpoint commits the database
     looks identical to "node finished a moment ago." The 5min window is
     the practical floor; pair it with terminal detection so completed
-    runs flip to idle the instant `__end__` lands rather than waiting
+    runs flip to idle the instant the last node fires rather than waiting
     out the window.
     """
     # 1. HITL pause — time-independent, can persist indefinitely.
@@ -459,11 +521,15 @@ def _derive_status(row: dict[str, Any]) -> str:
     if source == "input" and (step is None or step <= 0):
         return "starting"
 
-    # 3. Terminal — graph reached __end__. Detected via the writes
-    # metadata which records what the latest super-step wrote. If
-    # `__end__` is among the keys, the END pseudo-node was reached.
+    # 3a. Terminal via writes metadata. Some LangGraph versions populate
+    # this; jeevy's doesn't, so 3b below catches it.
     writes = row.get("writes")
     if isinstance(writes, dict) and "__end__" in writes:
+        return "idle"
+
+    # 3b. Terminal via topology — current_node has only outgoing edges
+    # to __end__ (or no outgoing edges at all). Definitive end-of-run.
+    if current_node and current_node in terminal_nodes:
         return "idle"
 
     # 4. Recent activity → in-flight (best-effort, tolerates slow nodes).
