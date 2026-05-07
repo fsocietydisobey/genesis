@@ -411,7 +411,14 @@ def _derive_nodes(row: dict[str, Any]) -> tuple[str | None, list[str]]:
     return current, recent
 
 
-_RUNNING_THRESHOLD_SECONDS = 30.0
+# Window of activity that classifies a thread as "running" rather than
+# "idle". 30s was too aggressive — LLM-heavy nodes routinely take 60-
+# 180s between checkpoint writes, so those threads kept showing as
+# idle while genuinely executing. 300s tolerates slow nodes; the
+# staleness classifier on the frontend then picks up at 5min ("stale")
+# and 15min ("stuck") so finished runs that haven't aged out yet still
+# get flagged for inspection.
+_RUNNING_THRESHOLD_SECONDS = 300.0
 
 
 def _derive_status(row: dict[str, Any]) -> str:
