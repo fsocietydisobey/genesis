@@ -2,8 +2,9 @@
 
 Loads .env automatically so API keys don't need to be in MCP config.
 
-13 MCP tools: health, research, architect, classify, chain, chain_pipeline,
-chain_refiner, swarm, chain_hypervisor, status, approve, history, rewind.
+14 MCP tools: health, research, architect, brainstorm, classify, chain,
+chain_pipeline, chain_refiner, swarm, chain_hypervisor, status, approve,
+history, rewind.
 """
 
 import asyncio
@@ -30,7 +31,11 @@ from chimera.graphs.supervisor import build_orchestrator_graph
 from chimera.graphs.swarm import build_swarm_graph
 from chimera.graphs.toolbuilder import build_toolbuilder_graph
 from chimera.log import get_logger, setup_logging
-from chimera.prompts import ARCHITECT_SYSTEM_PROMPT, RESEARCH_SYSTEM_PROMPT
+from chimera.prompts import (
+    ARCHITECT_SYSTEM_PROMPT,
+    BRAINSTORM_SYSTEM_PROMPT,
+    RESEARCH_SYSTEM_PROMPT,
+)
 from chimera.server.jobs import create_job, format_job_status, get_job, list_jobs, notify_job_update
 
 log = get_logger("graph-server")
@@ -193,6 +198,145 @@ async def architect(goal: str, context: str = "", constraints: str = "", cwd: st
         f"## Constraints\n\n{constraints}" if constraints else "",
     )
     return await run_claude(prompt, cwd=cwd or None)
+
+
+def _slugify(text: str, max_len: int = 60) -> str:
+    """Lowercase kebab-case slug from arbitrary text."""
+    import re
+
+    cleaned = re.sub(r"[^a-z0-9\s-]", "", text.lower())
+    slug = re.sub(r"[\s-]+", "-", cleaned).strip("-")
+    return slug[:max_len].rstrip("-") or "untitled"
+
+
+def _save_brainstorm(topic: str, claude_out: str, base_dir: str) -> Path:
+    """Write a brainstorm file under <base_dir>/brainstorms/.
+
+    File name: <slug>-<YYYY-MM-DD>.md, with -2/-3 suffix on collision.
+    Returns the absolute path written.
+
+    Claude's output already contains both `## Divergent ideas` and
+    `## Critique` sections (per the brainstorm system prompt); we just
+    wrap it with a title + date header.
+    """
+    from datetime import date
+
+    folder = Path(base_dir) / "brainstorms"
+    folder.mkdir(parents=True, exist_ok=True)
+
+    slug = _slugify(topic)
+    today = date.today().isoformat()
+    candidate = folder / f"{slug}-{today}.md"
+    suffix = 2
+    while candidate.exists():
+        candidate = folder / f"{slug}-{today}-{suffix}.md"
+        suffix += 1
+
+    body = f"# Brainstorm — {topic}\n\n**Date:** {today}\n\n---\n\n{claude_out.strip()}\n"
+    candidate.write_text(body, encoding="utf-8")
+    _open_in_default_app(candidate)
+    return candidate
+
+
+def _open_in_default_app(path: Path) -> None:
+    """Open `path` in the user's default app.
+
+    Resolution order:
+      1. CHIMERA_OPEN_CMD env var (if set) — used verbatim, path appended.
+         Examples: "code", "code -r", "firefox", "xdg-open".
+      2. macOS: `open <path>`.
+      3. Linux: `xdg-open <path>` (requires an `xdg-mime` handler for the
+         file's MIME type — markdown registration is NOT default on most
+         distros; surface a clear log if it fails).
+
+    Best-effort. Exit code is checked for ~2s after spawn; if the dispatcher
+    exits non-zero in that window, log a clear warning so the user knows why
+    auto-open didn't work. If the dispatcher is still running after 2s, the
+    GUI app is what's running — assume success and return.
+    """
+    import os
+    import subprocess
+    import sys
+    import time
+
+    custom = os.environ.get("CHIMERA_OPEN_CMD")
+    if custom:
+        cmd = [*custom.split(), str(path)]
+    elif sys.platform == "darwin":
+        cmd = ["open", str(path)]
+    else:
+        cmd = ["xdg-open", str(path)]
+
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+        )
+    except (OSError, FileNotFoundError) as exc:
+        log.warning("could not auto-open %s: %s", path, exc)
+        return
+
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline:
+        rc = proc.poll()
+        if rc is None:
+            time.sleep(0.05)
+            continue
+        if rc != 0:
+            stderr_bytes = proc.stderr.read() if proc.stderr else b""
+            stderr_text = stderr_bytes.decode(errors="replace").strip()[:200]
+            log.warning(
+                "auto-open failed (exit=%d): %s — %s. "
+                "On Linux, register a handler with `xdg-mime default <app>.desktop text/markdown` "
+                "or set CHIMERA_OPEN_CMD env var (e.g. CHIMERA_OPEN_CMD=code).",
+                rc,
+                " ".join(cmd),
+                stderr_text or "(no stderr)",
+            )
+        return
+
+
+@mcp.tool()
+async def brainstorm(topic: str, context: str = "", cwd: str = "") -> str:
+    """Single-call Claude brainstorm: divergent generation + self-critique.
+
+    Claude produces 8–12 divergent ideas with tradeoffs, then in the same
+    response runs an adversarial pass naming the weakest ideas, what's
+    missing from the space, and the quietest assumption. Output is saved
+    to `<cwd>/brainstorms/<slug>-<date>.md` and auto-opened.
+
+    Used to also run a parallel Gemini prior-art survey; dropped 2026-05-06
+    because Gemini was unreliable (intermittent multi-minute hangs, empty
+    outputs) and the prior-art half rarely was the load-bearing piece for
+    design-space brainstorms. /chimera-research stays Gemini-driven for
+    genuine prior-art questions.
+
+    Args:
+        topic: What to brainstorm. Be specific — "ideas for a langgraph
+            monitoring dashboard" beats "monitoring".
+        context: Optional context — relevant code, constraints, prior
+            findings, conversation history.
+        cwd: Optional project directory. Spawned subprocess runs from
+            here AND the output file lands here. Defaults to chimera's
+            resolved PROJECT_ROOT.
+    """
+    target_cwd = cwd or config.PROJECT_ROOT
+
+    prompt = build_prompt(
+        BRAINSTORM_SYSTEM_PROMPT,
+        f"## Topic\n\n{topic}",
+        f"## Context\n\n{context}" if context else "",
+    )
+
+    log.info("brainstorm: topic=%s, cwd=%s", topic[:80], target_cwd)
+    claude_out = await run_claude(prompt, cwd=target_cwd)
+
+    saved = _save_brainstorm(topic, claude_out, target_cwd)
+    rel = saved.relative_to(target_cwd) if str(saved).startswith(str(target_cwd)) else saved
+    return f"Saved to `{rel}` ({len(claude_out)} chars)."
 
 
 @mcp.tool()

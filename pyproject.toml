@@ -19,6 +19,18 @@ dependencies = [
     "psutil>=5",
 ]
 
+[project.optional-dependencies]
+# `chimera[monitor]` — installs LangGraph monitor backend deps.
+# FastAPI is already pulled in transitively via mcp[cli]; pinned here for safety
+# in case mcp drops it. qdrant-client added in Phase 2 when the Qdrant view ships.
+monitor = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "psycopg[binary]>=3.1",
+    "tree-sitter>=0.21",
+    "tree-sitter-python>=0.21",
+]
+
 [project.scripts]
 chimera = "chimera:main"
 

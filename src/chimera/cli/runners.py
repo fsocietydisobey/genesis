@@ -45,11 +45,17 @@ async def run_gemini(
     if not cli_available(config.GEMINI_CMD):
         return f"Error: Gemini CLI not found at `{config.GEMINI_CMD}`. Install with: npm install -g @google/gemini-cli"
 
-    # --skip-trust is required for headless use; without it Gemini refuses
+    # --skip-trust: required for headless use; without it Gemini refuses
     # to run in any directory not previously trusted in interactive mode.
+    # --approval-mode plan: read-only mode. Suppresses side-effecting tool
+    # invocations so they don't leak into the JSON output as agentic
+    # chatter (`update_topic(...)`, "I am now finished with this task",
+    # etc. — observed in saved brainstorm files 2026-05-06).
     cmd = [
         config.GEMINI_CMD,
         "--skip-trust",
+        "--approval-mode",
+        "plan",
         "-m",
         config.GEMINI_MODEL,
         "-p",
@@ -57,11 +63,15 @@ async def run_gemini(
         "-o",
         "json",
     ]
-    # Expand read scope to all registered project roots — gemini takes a
-    # CSV list via a single flag.
-    extras = _extra_roots(cwd)
-    if extras:
-        cmd.extend(["--include-directories", ",".join(extras)])
+    # NOTE: gemini-cli's --include-directories appears to eagerly scan/index
+    # the listed trees, which blocks indefinitely on large repos
+    # (jeevy_portal hung a brainstorm for 6+ min on 2026-05-06 before being
+    # SIGKILLed, while claude with --add-dir on the same path completed in
+    # 97s). Dropping cross-project scope from gemini for now — the spawned
+    # gemini still has read access to its `cwd`, which is enough for
+    # brainstorm/research where conversation context is bundled separately.
+    # If a future tool genuinely needs gemini grep across multiple roots,
+    # add an explicit opt-in arg with a size guard.
     if state.gemini_session_id:
         cmd.extend(["--resume", state.gemini_session_id])
 
@@ -97,6 +107,8 @@ async def run_claude(
     ctx: "Context | None" = None,
     permission_mode: str | None = "acceptEdits",
     cwd: str | None = None,
+    effort: str = "medium",
+    model: str | None = None,
 ) -> str:
     """Run a prompt through Claude Code CLI, continuing the session if one exists.
 
@@ -110,6 +122,10 @@ async def run_claude(
             to fall back to claude's interactive default.
         cwd: Working directory for the spawned subprocess. Defaults to chimera's
             resolved PROJECT_ROOT.
+        effort: Reasoning effort. "low" / "medium" / "high". High triggers
+            extended thinking — useful for classification-heavy tasks
+            (chimera-monitor metadata scan, in particular).
+        model: Override CLAUDE_MODEL for this call. Default uses config.CLAUDE_MODEL.
     """
     if not cli_available(config.CLAUDE_CMD):
         return f"Error: Claude CLI not found at `{config.CLAUDE_CMD}`. Set CLAUDE_CMD env var or install Claude Code."
@@ -126,9 +142,9 @@ async def run_claude(
         "--mcp-config",
         '{"mcpServers":{}}',
         "--model",
-        config.CLAUDE_MODEL,
+        model or config.CLAUDE_MODEL,
         "--effort",
-        "medium",
+        effort,
         "-p",
         prompt,
         "--output-format",

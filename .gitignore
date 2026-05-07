@@ -5,3 +5,13 @@ __pycache__/
 *.db
 .ruff_cache/
 
+# Monitor frontend build artifacts and node_modules
+monitor_ui/node_modules/
+monitor_ui/dist/
+monitor_ui/.vite/
+monitor_ui/*.tsbuildinfo
+monitor_ui/vite.config.d.ts
+monitor_ui/vite.config.js
+
+# Brainstorm tool output — generated per-call, not source
+brainstorms/

@@ -1,0 +1,130 @@
+"""FastAPI app for the LangGraph monitor.
+
+- Asserts `127.0.0.1` binding at startup (refuses to serve on any other host).
+- Mounts API routers under `/api/`.
+- Serves the built frontend from `monitor_ui/dist/` (auto-built via build.py).
+- Prints a startup banner with discovered DB hosts before accepting requests.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+
+from chimera.cli.config import ROOTS
+
+from . import build as ui_build
+from ._optional import require
+from .discovery.connections import discover_all
+from .discovery.project import discover
+from .metadata import scanner as meta_scanner
+
+DEFAULT_HOST = "127.0.0.1"
+DEFAULT_PORT = 8740
+
+
+def _assert_loopback(host: str) -> None:
+    """`127.0.0.1` binding is the auth layer — refuse anything else."""
+    if host != DEFAULT_HOST:
+        raise SystemExit(
+            f"chimera monitor: refusing to bind to {host!r} — "
+            f"only 127.0.0.1 is allowed (loopback is the auth layer)"
+        )
+
+
+def _print_banner(projects, connections_by_project) -> None:
+    """Single-shot pre-serve banner. Goes to stderr (the monitor.log file)."""
+    print("=" * 72, file=sys.stderr)
+    print(
+        f"chimera monitor — monitoring {len(projects)} project(s) — "
+        f"local DBs only, do not point at prod",
+        file=sys.stderr,
+    )
+    if not projects:
+        print("  (no langgraph projects discovered in chimera roots registry)", file=sys.stderr)
+    for project in projects:
+        conns = connections_by_project.get(project.path)
+        print(f"  • {project.name} ({project.detected_via}) — {project.path}", file=sys.stderr)
+        if conns is None or (not conns.postgres and not conns.sqlite):
+            print("      (no checkpointer detected — threads view will be empty)", file=sys.stderr)
+            continue
+        for pg in conns.postgres:
+            print(f"      postgres {pg.var}: {pg.host}/{pg.database}", file=sys.stderr)
+        for sqlite in conns.sqlite:
+            print(f"      sqlite   {sqlite.label}: {sqlite.path}", file=sys.stderr)
+    print("=" * 72, file=sys.stderr)
+
+
+def build_app():
+    """Build the FastAPI app, mount routes, and configure static serving."""
+    fastapi = require("fastapi")
+
+    projects = discover(ROOTS)
+    connections_by_project = {p.path: discover_all(p.path) for p in projects}
+    _print_banner(projects, connections_by_project)
+
+    app = fastapi.FastAPI(title="Chimera Monitor", docs_url="/api/docs", openapi_url="/api/openapi.json")
+
+    # Mount API routers (lazy imports so optional deps don't bite at import time)
+    from .api import projects as projects_api
+    from .api import threads as threads_api
+    from .api import topology as topology_api
+
+    app.include_router(projects_api.build_router(projects, connections_by_project), prefix="/api")
+    app.include_router(topology_api.build_router(projects), prefix="/api")
+    app.include_router(threads_api.build_router(connections_by_project, projects), prefix="/api")
+
+    # Auto-scan: kick off background metadata enrichment for any project
+    # whose cache is missing or stale. The worker drains serially so we
+    # don't hammer Gemini. Scans complete in the background; the topology
+    # endpoint returns AST-only data until each scan lands.
+    @app.on_event("startup")
+    async def _start_scanner() -> None:
+        meta_scanner.start_worker()
+        n = meta_scanner.enqueue_stale([(p.name, p.path) for p in projects])
+        if n:
+            print(
+                f"chimera monitor: queued {n} project(s) for metadata scan "
+                f"(runs in background)",
+                file=sys.stderr,
+            )
+
+    # Static frontend — only mount if dist/ exists; otherwise serve a placeholder
+    dist = ui_build.dist_dir()
+    if dist.is_dir() and (dist / "index.html").is_file():
+        from fastapi.responses import FileResponse
+        from fastapi.staticfiles import StaticFiles
+
+        app.mount("/assets", StaticFiles(directory=str(dist / "assets")), name="assets")
+
+        @app.get("/{full_path:path}")
+        async def spa(full_path: str):  # noqa: ARG001
+            # SPA fallback — serve index.html for any non-API route
+            return FileResponse(str(dist / "index.html"))
+    else:
+        @app.get("/")
+        async def placeholder():
+            return {
+                "status": "ok",
+                "message": (
+                    "monitor backend running, but the frontend has not been built yet. "
+                    "Scaffold src/chimera/monitor_ui/ then restart `chimera monitor start`."
+                ),
+            }
+
+    return app
+
+
+def serve(*, port: int = DEFAULT_PORT, host: str = DEFAULT_HOST) -> None:
+    """Bring up uvicorn after asserting loopback + building the UI."""
+    _assert_loopback(host)
+    ui_build.ensure_built()
+
+    uvicorn = require("uvicorn")
+    app = build_app()
+
+    # Belt and suspenders: clear any inherited env that uvicorn might use
+    # to override the host (defense against accidental 0.0.0.0).
+    os.environ.pop("UVICORN_HOST", None)
+
+    uvicorn.run(app, host=host, port=port, log_level="info", access_log=False)
