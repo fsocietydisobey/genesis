@@ -601,19 +601,25 @@ def _derive_status(
     # 3b. Terminal via topology — current_node has only outgoing edges
     # to __end__ (or no outgoing edges at all).
     #
-    # Important: orchestrator-style apps (jeevy's chat_lane / ingest_lane
-    # / digest_lane / output_lane) reach a terminal node at the END of
-    # every cycle, but the host process re-invokes the graph for the
-    # next cycle within seconds. Classifying terminal-without-recency
-    # as idle would flicker those threads between "running" (mid-cycle)
-    # and "idle" (between cycles) every poll. Only declare idle if
-    # there's been NO activity for 90 seconds — that's long enough to
-    # confidently say the host stopped re-invoking.
+    # Tension: one-shot graphs at terminal = done forever. Orchestrator-
+    # style apps (jeevy's chat_lane / ingest_lane / digest_lane /
+    # output_lane) hit terminal at the END of every cycle but
+    # re-invoke within seconds. We can't tell the two apart from the
+    # checkpoint alone — both look identical at the moment they hit
+    # terminal.
+    #
+    # Heuristic: tolerate a SHORT between-cycles window. In jeevy,
+    # cycle-to-cycle gap is typically <3s; 30s gives generous slack
+    # without dragging the "running" classification long after a run
+    # actually completes (90s was too long — it kept finished runs
+    # flagged as running for the full 1.5min after their final cycle).
+    #
+    # Trade-off accepted: if a real orchestrator pause exceeds 30s,
+    # we'll briefly mis-classify as idle. The 5-min running threshold
+    # below catches it on the next cycle when activity resumes.
     if current_node and current_node in terminal_nodes:
         last_updated = row.get("last_updated")
-        if last_updated and _within_seconds(last_updated, 90.0):
-            # Terminal but recent — between-cycles in a multi-invocation
-            # graph. Treat as still running until activity actually stops.
+        if last_updated and _within_seconds(last_updated, 30.0):
             return "running"
         return "idle"
 
