@@ -212,6 +212,47 @@ async def api_routes(project: str, graph_linked_only: bool = False) -> str:
     return "\n".join(lines)
 
 
+async def anomalies(limit: int = 20, only_failures: bool = True) -> str:
+    """Self-watch findings: invariants the daemon checks against itself.
+
+    The daemon runs periodic invariant checks (DB ↔ API consistency,
+    observation collector freshness, topology agreement). Failures
+    are logged. This tool surfaces the recent log so Claude can see
+    what's been weird without reading the daemon's stderr.
+
+    Args:
+        limit: max entries to return (1-100, default 20)
+        only_failures: if True, hide passing checks (the typical use)
+    """
+    qs = f"limit={max(1, min(100, limit))}"
+    if only_failures:
+        qs += "&only_failures=true"
+    data = _get(f"/api/anomalies?{qs}")
+    if isinstance(data, str):
+        return data
+    items = data.get("items", [])
+    if not items:
+        return "No anomalies in the recent log." + (
+            " Pass `only_failures=False` to see passing checks too."
+            if only_failures else ""
+        )
+    lines = [f"**{len(items)} anomaly entries** (most recent first):\n"]
+    for item in reversed(items):
+        sev = item.get("severity", "warn")
+        icon = {"error": "🔴", "warn": "🟡", "info": "ℹ️"}.get(sev, "·")
+        passed = "✓" if item.get("passed") else "✗"
+        proj = item.get("project") or "*"
+        ts = (item.get("timestamp") or "")[:19]
+        lines.append(
+            f"{icon} {passed} `{item.get('check')}`  proj={proj}  {ts}"
+        )
+        if item.get("detail"):
+            lines.append(f"    {item['detail']}")
+        if item.get("evidence"):
+            lines.append(f"    evidence: {item['evidence']}")
+    return "\n".join(lines)
+
+
 async def topology(project: str) -> str:
     """Compiled-graph topology for a project: graph names + node counts."""
     data = _get(f"/api/topology/{urllib.parse.quote(project)}")

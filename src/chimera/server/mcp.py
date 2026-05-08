@@ -1269,6 +1269,24 @@ async def monitor_find_stuck(project: str) -> str:
 
 
 @mcp.tool()
+async def monitor_anomalies(limit: int = 20, only_failures: bool = True) -> str:
+    """Self-watch findings — invariant checks the chimera-monitor daemon
+    runs against itself every 5 min.
+
+    Surfaces any inconsistencies between what the dashboard shows and
+    the underlying state (DB ↔ API mismatches, stale observation
+    collector, topology drift). Use to verify the daemon's claims
+    before trusting them, or when something on the dashboard "looks
+    off" and you want to know if the daemon already noticed.
+
+    Args:
+        limit: Max entries (1-100, default 20).
+        only_failures: True hides passing checks (typical use).
+    """
+    return await _monitor_tools.anomalies(limit, only_failures)
+
+
+@mcp.tool()
 async def monitor_api_routes(project: str, graph_linked_only: bool = False) -> str:
     """FastAPI routes for a project, with which routes invoke a LangGraph.
 

@@ -67,6 +67,7 @@ def build_app():
     app = fastapi.FastAPI(title="Chimera Monitor", docs_url="/api/docs", openapi_url="/api/openapi.json")
 
     # Mount API routers (lazy imports so optional deps don't bite at import time)
+    from .api import anomalies as anomalies_api
     from .api import api_routes as api_routes_api
     from .api import projects as projects_api
     from .api import threads as threads_api
@@ -76,6 +77,7 @@ def build_app():
     app.include_router(topology_api.build_router(projects), prefix="/api")
     app.include_router(threads_api.build_router(connections_by_project, projects), prefix="/api")
     app.include_router(api_routes_api.build_router(projects), prefix="/api")
+    app.include_router(anomalies_api.build_router(), prefix="/api")
 
     # Auto-scan: kick off background metadata enrichment for any project
     # whose cache is missing or stale. The worker drains serially so we
@@ -116,6 +118,37 @@ def build_app():
                             f"chimera monitor: observation collection failed for {p.name}: {exc}",
                             file=sys.stderr,
                         )
+                await asyncio.sleep(300)  # 5 min between passes
+
+        asyncio.create_task(_loop())
+
+    # Self-watch — periodic invariant checks that the daemon's claims
+    # match the underlying truth (DB → API consistency, observation
+    # freshness, topology agreement). Failures land in the anomaly log
+    # for human inspection; the daemon does NOT auto-fix.
+    @app.on_event("startup")
+    async def _start_self_watch_loop() -> None:
+        from . import anomalies as anomalies_module
+
+        async def _loop() -> None:
+            # Wait long enough that:
+            #   - Observation collector's first pass (after 20s) has run,
+            #     so observation_freshness has data to check.
+            #   - Uvicorn warm-up + first metadata scan dispatch is done,
+            #     so the API endpoints we probe don't time out.
+            # 90s is a comfortable margin — the first check fires
+            # roughly 1.5 min after daemon start. Real anomalies that
+            # appear in the first 90s would be caught by the next pass.
+            await asyncio.sleep(90)
+            base_url = f"http://{DEFAULT_HOST}:{int(os.environ.get('CHIMERA_MONITOR_PORT', 8740))}"
+            while True:
+                try:
+                    await anomalies_module.run_checks(projects, base_url=base_url)
+                except Exception as exc:
+                    print(
+                        f"chimera monitor: self-watch check failed: {exc}",
+                        file=sys.stderr,
+                    )
                 await asyncio.sleep(300)  # 5 min between passes
 
         asyncio.create_task(_loop())
