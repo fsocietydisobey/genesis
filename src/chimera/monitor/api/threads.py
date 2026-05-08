@@ -38,20 +38,29 @@ from ..metadata.schema import ProjectMetadata, RunClustering, RuntimeObservation
 # ---------------------------------------------------------------------------
 # Postgres SQL
 # ---------------------------------------------------------------------------
+# Two-phase query so LIMIT applies to MOST-RECENT threads, not the
+# alphabetically-first ones. Without the outer ORDER BY, busy projects
+# (jeevy with 100+ threads) had their newly-spawned runs invisible
+# from the dashboard because alphabetically-earlier idle threads
+# filled the page and pushed live ones off the bottom.
 _PG_LIST_SQL = """
-SELECT DISTINCT ON (thread_id)
-       thread_id,
-       checkpoint_id                                          AS latest_checkpoint_id,
-       checkpoint->>'ts'                                      AS last_updated,
-       (checkpoint->'channel_values' ? '__interrupt__')       AS is_paused,
-       checkpoint->'channel_values'->>'agent_profile'         AS agent_profile,
-       checkpoint->'channel_values'->>'phase'                 AS phase,
-       (metadata->>'step')::int                               AS step,
-       metadata->>'source'                                    AS source,
-       metadata->'writes'                                     AS writes,
-       checkpoint->'versions_seen'                            AS versions_seen
-FROM checkpoints
-ORDER BY thread_id, checkpoint_id DESC
+SELECT *
+FROM (
+    SELECT DISTINCT ON (thread_id)
+           thread_id,
+           checkpoint_id                                          AS latest_checkpoint_id,
+           checkpoint->>'ts'                                      AS last_updated,
+           (checkpoint->'channel_values' ? '__interrupt__')       AS is_paused,
+           checkpoint->'channel_values'->>'agent_profile'         AS agent_profile,
+           checkpoint->'channel_values'->>'phase'                 AS phase,
+           (metadata->>'step')::int                               AS step,
+           metadata->>'source'                                    AS source,
+           metadata->'writes'                                     AS writes,
+           checkpoint->'versions_seen'                            AS versions_seen
+    FROM checkpoints
+    ORDER BY thread_id, checkpoint_id DESC
+) AS latest_per_thread
+ORDER BY latest_checkpoint_id DESC
 LIMIT %s OFFSET %s
 """
 
@@ -590,8 +599,22 @@ def _derive_status(
         return "idle"
 
     # 3b. Terminal via topology — current_node has only outgoing edges
-    # to __end__ (or no outgoing edges at all). Definitive end-of-run.
+    # to __end__ (or no outgoing edges at all).
+    #
+    # Important: orchestrator-style apps (jeevy's chat_lane / ingest_lane
+    # / digest_lane / output_lane) reach a terminal node at the END of
+    # every cycle, but the host process re-invokes the graph for the
+    # next cycle within seconds. Classifying terminal-without-recency
+    # as idle would flicker those threads between "running" (mid-cycle)
+    # and "idle" (between cycles) every poll. Only declare idle if
+    # there's been NO activity for 90 seconds — that's long enough to
+    # confidently say the host stopped re-invoking.
     if current_node and current_node in terminal_nodes:
+        last_updated = row.get("last_updated")
+        if last_updated and _within_seconds(last_updated, 90.0):
+            # Terminal but recent — between-cycles in a multi-invocation
+            # graph. Treat as still running until activity actually stops.
+            return "running"
         return "idle"
 
     # 4. Recent activity → in-flight (best-effort, tolerates slow nodes).
