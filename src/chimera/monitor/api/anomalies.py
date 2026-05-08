@@ -27,4 +27,31 @@ def build_router():
             "items": items,
         }
 
+    @router.get("/heartbeat")
+    async def get_heartbeat() -> dict[str, Any]:
+        """Latest self-watch completion timestamp. Use for liveness checks:
+        if `last_self_watch_at` is older than expected (e.g. >10min when
+        cadence is 5min), the daemon's self-watch loop is stuck or dead.
+
+        Returns {} when self-watch has never run (first ~90s of daemon life).
+        Otherwise: { last_self_watch_at, checks_total, checks_failed }.
+        """
+        from datetime import datetime, timezone
+
+        hb = anomalies_module.heartbeat()
+        if not hb:
+            return {"healthy": False, "reason": "self-watch has never run"}
+        try:
+            last = datetime.fromisoformat(hb["last_self_watch_at"])
+            age_s = (datetime.now(timezone.utc) - last).total_seconds()
+        except Exception:
+            return {"healthy": False, "reason": "malformed heartbeat", **hb}
+        # Cadence is 5min; allow 2× margin before flagging unhealthy
+        healthy = age_s < 600
+        return {
+            "healthy": healthy,
+            "age_seconds": age_s,
+            **hb,
+        }
+
     return router

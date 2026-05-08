@@ -130,6 +130,12 @@ async def run_checks(
             r.timestamp = now_iso
     _persist(results)
 
+    # Heartbeat — write the completion timestamp to a known path so
+    # external monitoring (cron, systemd timer, GitHub Action, etc.)
+    # can detect "self-watch hasn't run in N hours = daemon's broken"
+    # without polling the API. File is overwritten each pass.
+    _write_heartbeat(now_iso, len(results), sum(1 for r in results if not r.passed))
+
     failures = [r for r in results if not r.passed]
     if failures:
         log.warning(
@@ -142,6 +148,34 @@ async def run_checks(
         log.info("self-watch: %d checks passed", len(results))
 
     return results
+
+
+_HEARTBEAT_FILE = _LOG_DIR / "monitor-heartbeat.json"
+
+
+def _write_heartbeat(timestamp: str, total: int, failures: int) -> None:
+    try:
+        _LOG_DIR.mkdir(parents=True, exist_ok=True)
+        _HEARTBEAT_FILE.write_text(
+            json.dumps({
+                "last_self_watch_at": timestamp,
+                "checks_total": total,
+                "checks_failed": failures,
+            }),
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        log.warning("anomalies: heartbeat write failed: %s", exc)
+
+
+def heartbeat() -> dict[str, Any]:
+    """Read the latest heartbeat. Returns {} if self-watch hasn't run yet."""
+    if not _HEARTBEAT_FILE.exists():
+        return {}
+    try:
+        return json.loads(_HEARTBEAT_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
 
 
 def recent_anomalies(limit: int = 50) -> list[dict[str, Any]]:

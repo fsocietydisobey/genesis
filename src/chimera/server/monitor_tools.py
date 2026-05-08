@@ -253,6 +253,97 @@ async def anomalies(limit: int = 20, only_failures: bool = True) -> str:
     return "\n".join(lines)
 
 
+async def frontend_components(project: str, with_api_calls_only: bool = False) -> str:
+    """React/Next components in a project + their API calls + state hooks.
+
+    Args:
+        project: Project name.
+        with_api_calls_only: If True, hide components that don't call any API.
+    """
+    data = _get(f"/api/frontend_components/{urllib.parse.quote(project)}")
+    if isinstance(data, str):
+        return data
+    comps = data.get("components", [])
+    if with_api_calls_only:
+        comps = [c for c in comps if c.get("api_calls")]
+    if not comps:
+        return f"No components{' with API calls' if with_api_calls_only else ''} in `{project}`."
+    lines = [
+        f"**`{project}` — {len(comps)} component(s)** "
+        f"({data.get('with_api_calls', 0)} make API calls)\n"
+    ]
+    comps.sort(key=lambda c: (not c.get("api_calls"), c.get("file", ""), c.get("line", 0)))
+    for c in comps[:60]:  # cap output for chat readability
+        marker = "→api" if c.get("api_calls") else "    "
+        loc = f"{c.get('file', '?')}:{c.get('line', 0)}"
+        lines.append(f"{marker}  {c.get('name', '?'):30s}  ({loc})")
+        if c.get("api_calls"):
+            lines.append(f"        api: {', '.join(c['api_calls'][:3])}")
+        if c.get("state_hooks"):
+            lines.append(f"        hooks: {', '.join(c['state_hooks'])}")
+    if len(comps) > 60:
+        lines.append(f"\n... {len(comps) - 60} more not shown")
+    return "\n".join(lines)
+
+
+async def schema_drift(project: str) -> str:
+    """Pydantic / SQLAlchemy models vs the project's Postgres schema."""
+    data = _get(f"/api/schema_drift/{urllib.parse.quote(project)}")
+    if isinstance(data, str):
+        return data
+    if data.get("note"):
+        return f"`{project}`: {data['note']}"
+    reports = data.get("reports", [])
+    drifty = [r for r in reports if r.get("has_drift")]
+    if not drifty:
+        return (
+            f"**`{project}`**: {data.get('model_count')} model(s), "
+            f"no drift detected against Postgres schema."
+        )
+    lines = [
+        f"**`{project}` — {data.get('with_drift')} model(s) drift** "
+        f"out of {data.get('model_count')}\n"
+    ]
+    for r in drifty[:20]:
+        loc = f"{r.get('file', '?')}:{r.get('line', 0)}"
+        if not r.get("table_exists"):
+            lines.append(f"❌ `{r.get('model')}` → table `{r.get('table')}` MISSING  ({loc})")
+            continue
+        bits = []
+        if r.get("only_in_model"):
+            bits.append(f"in model only: {r['only_in_model']}")
+        if r.get("only_in_db"):
+            bits.append(f"in DB only: {r['only_in_db']}")
+        if r.get("type_mismatches"):
+            mm = [f"{m['field']}({m['model_type']}→{m['db_type']})"
+                  for m in r['type_mismatches']]
+            bits.append(f"type mismatch: {', '.join(mm)}")
+        lines.append(f"⚠️ `{r.get('model')}` ↔ `{r.get('table')}`  ({loc})")
+        for b in bits:
+            lines.append(f"    {b}")
+    if len(drifty) > 20:
+        lines.append(f"\n... {len(drifty) - 20} more not shown")
+    return "\n".join(lines)
+
+
+async def heartbeat() -> str:
+    """Self-watch heartbeat — when did the daemon last complete its
+    invariant checks? Use for liveness."""
+    data = _get("/api/heartbeat")
+    if isinstance(data, str):
+        return data
+    if not data:
+        return "Self-watch has not run yet."
+    icon = "🟢" if data.get("healthy") else "🔴"
+    parts = [
+        f"{icon} **self-watch** {'healthy' if data.get('healthy') else 'STALE'}",
+        f"last run: {data.get('last_self_watch_at', 'never')}",
+        f"age: {data.get('age_seconds', '?'):.0f}s",
+        f"checks: {data.get('checks_total', '?')} ({data.get('checks_failed', 0)} failed)",
+    ]
+    return "\n".join(parts)
+
+
 async def topology(project: str) -> str:
     """Compiled-graph topology for a project: graph names + node counts."""
     data = _get(f"/api/topology/{urllib.parse.quote(project)}")
