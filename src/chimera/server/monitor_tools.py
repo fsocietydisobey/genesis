@@ -1,0 +1,200 @@
+"""HTTP client wrappers for the chimera-monitor REST API, exposed as
+MCP tools so Claude can query LangGraph runtime state directly from
+chat.
+
+Why these aren't just MCP tools defined in monitor/server.py: chimera's
+MCP server runs over stdio (one process per Claude Code session); the
+monitor daemon runs HTTP (one daemon shared across all chat sessions).
+They're separate processes by design — the MCP layer here calls into
+the daemon's REST API.
+
+Failure mode: if the daemon isn't running, every tool returns a clear
+"daemon not started" message rather than crashing. The user gets
+actionable feedback instead of a stack trace.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import urllib.error
+import urllib.parse
+import urllib.request
+from typing import Any
+
+# Default to the monitor daemon's bind address. Override with
+# CHIMERA_MONITOR_URL if the daemon runs elsewhere (rare).
+_DEFAULT_BASE = os.environ.get(
+    "CHIMERA_MONITOR_URL", "http://127.0.0.1:8740"
+).rstrip("/")
+
+_DAEMON_DOWN_HINT = (
+    "chimera-monitor daemon is not running or unreachable at {base}.\n"
+    "Run `chimera monitor start` and try again. If the daemon binds a\n"
+    "different port, set CHIMERA_MONITOR_URL=http://127.0.0.1:<port>."
+)
+
+
+def _get(path: str, *, base: str = _DEFAULT_BASE, timeout: float = 5.0) -> dict[str, Any] | str:
+    """GET request → parsed JSON, or a friendly error string on failure."""
+    url = f"{base}{path}"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.URLError:
+        return _DAEMON_DOWN_HINT.format(base=base)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        return f"chimera-monitor returned non-JSON from {url}: {exc}"
+    except Exception as exc:
+        return f"chimera-monitor query failed ({url}): {exc}"
+
+
+# ---------------------------------------------------------------------------
+# Tool implementations — kept thin so Claude reads the daemon's data
+# directly. Output is markdown-formatted for chat readability.
+# ---------------------------------------------------------------------------
+
+
+async def list_projects() -> str:
+    """All projects the monitor daemon has discovered."""
+    data = _get("/api/projects")
+    if isinstance(data, str):
+        return data
+    if not isinstance(data, list) or not data:
+        return "No projects discovered. Add roots to ~/.config/chimera/roots.yaml."
+    lines = [f"**{len(data)} projects:**\n"]
+    for p in data:
+        conns = p.get("connections", [])
+        conn_summary = ", ".join(f"{c['kind']}:{c.get('label', '?')}" for c in conns) or "no checkpointer"
+        lines.append(f"- `{p['name']}` — {p['path']} ({conn_summary})")
+    return "\n".join(lines)
+
+
+async def list_active_runs(project: str) -> str:
+    """Threads currently running, paused, or starting in a project."""
+    data = _get(f"/api/threads/{urllib.parse.quote(project)}?limit=50")
+    if isinstance(data, str):
+        return data
+
+    threads = data.get("threads", [])
+    live = [t for t in threads if t["status"] in ("running", "paused", "starting")]
+    if not live:
+        return f"No active runs in `{project}` ({len(threads)} idle)."
+
+    lines = [
+        f"**{project}** — {len(live)} active / {len(threads)} total"
+        f" (running threshold: {data.get('running_threshold_seconds', 300)}s)\n"
+    ]
+    for t in live:
+        node = t.get("current_node") or "—"
+        scope = (t.get("scope_id") or "")[:8]
+        lines.append(
+            f"- `{t['thread_id'][:50]}`  {t['status']}  @{node}"
+            f"  step={t.get('step') or 0}  scope={scope}"
+        )
+    return "\n".join(lines)
+
+
+async def thread_state(project: str, thread_id: str, recent: int = 5) -> str:
+    """Full state + recent N checkpoints for a single thread.
+
+    Args:
+        project: Project name (e.g. "chimera", "jeevy_portal")
+        thread_id: Thread to inspect
+        recent: How many checkpoints to include (default 5, max 50)
+    """
+    recent = max(1, min(50, recent))
+    data = _get(f"/api/threads/{urllib.parse.quote(project)}/{urllib.parse.quote(thread_id, safe='')}?limit={recent}")
+    if isinstance(data, str):
+        return data
+
+    cps = data.get("checkpoints", [])
+    if not cps:
+        return f"No checkpoints found for thread `{thread_id}` in `{project}`."
+
+    # Show newest-first as the API returns them, with chronological numbering
+    chrono = list(reversed(cps))
+    lines = [f"**Thread `{thread_id}`** — {len(cps)} checkpoint(s)\n"]
+    for i, cp in enumerate(chrono):
+        state = cp.get("state") or {}
+        keys = list(state.keys()) if isinstance(state, dict) else []
+        ts = (cp.get("created_at") or "")[:19]
+        lines.append(
+            f"step {i}: {ts}  node={cp.get('node') or '-'}  "
+            f"keys={keys[:10]}{'...' if len(keys) > 10 else ''}"
+        )
+    return "\n".join(lines)
+
+
+async def find_stuck(project: str) -> str:
+    """Find threads classified as stuck/stale by the monitor's heuristics.
+
+    Checks running/paused threads against the per-project
+    running_threshold_seconds. Threads beyond 1× the threshold are
+    "stale"; beyond 3× are "stuck".
+    """
+    from datetime import datetime, timezone
+
+    data = _get(f"/api/threads/{urllib.parse.quote(project)}?limit=100")
+    if isinstance(data, str):
+        return data
+
+    threshold = data.get("running_threshold_seconds", 300)
+    now = datetime.now(timezone.utc)
+
+    stuck: list[tuple[float, dict]] = []
+    stale: list[tuple[float, dict]] = []
+    for t in data.get("threads", []):
+        if t["status"] not in ("running", "paused", "starting"):
+            continue
+        if not t.get("last_updated"):
+            continue
+        try:
+            updated = datetime.fromisoformat(t["last_updated"])
+            age_s = (now - updated).total_seconds()
+        except ValueError:
+            continue
+        if age_s >= threshold * 3:
+            stuck.append((age_s, t))
+        elif age_s >= threshold:
+            stale.append((age_s, t))
+
+    if not stuck and not stale:
+        return f"No stuck or stale threads in `{project}`."
+
+    lines = [f"**`{project}` — {len(stuck)} stuck, {len(stale)} stale** (threshold={threshold}s)\n"]
+    for age, t in sorted(stuck, key=lambda x: -x[0]):
+        lines.append(
+            f"🔴 STUCK  `{t['thread_id'][:50]}`  @{t.get('current_node') or '-'}"
+            f"  {age:.0f}s ago"
+        )
+    for age, t in sorted(stale, key=lambda x: -x[0]):
+        lines.append(
+            f"🟡 stale  `{t['thread_id'][:50]}`  @{t.get('current_node') or '-'}"
+            f"  {age:.0f}s ago"
+        )
+    return "\n".join(lines)
+
+
+async def topology(project: str) -> str:
+    """Compiled-graph topology for a project: graph names + node counts."""
+    data = _get(f"/api/topology/{urllib.parse.quote(project)}")
+    if isinstance(data, str):
+        return data
+
+    graphs = data.get("graphs", [])
+    if not graphs:
+        return f"No graphs discovered in `{project}`."
+
+    lines = [f"**`{project}` — {len(graphs)} graph(s):**\n"]
+    for g in graphs:
+        name = g.get("label") or g.get("name") or "?"
+        nodes = g.get("nodes", [])
+        edges = g.get("edges", [])
+        invokes = g.get("invokes", {})
+        lines.append(
+            f"- **{name}** ({g.get('name', '?')}) — "
+            f"{len(nodes)} nodes, {len(edges)} edges"
+            + (f", invokes: {list(invokes.values())}" if invokes else "")
+        )
+    return "\n".join(lines)

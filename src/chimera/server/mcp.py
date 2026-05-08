@@ -2,9 +2,12 @@
 
 Loads .env automatically so API keys don't need to be in MCP config.
 
-14 MCP tools: health, research, architect, brainstorm, classify, chain,
-chain_pipeline, chain_refiner, swarm, chain_hypervisor, status, approve,
-history, rewind.
+19 MCP tools:
+  Orchestration: health, research, architect, brainstorm, classify, chain,
+                 chain_pipeline, chain_refiner, swarm, chain_hypervisor,
+                 status, approve, history, rewind
+  Monitor:       monitor_projects, monitor_active_runs, monitor_thread_state,
+                 monitor_find_stuck, monitor_topology
 """
 
 import asyncio
@@ -1194,6 +1197,89 @@ async def _cleanup():
     _components_checkpointer = None
     _deadcode_checkpointer = None
     _toolbuilder_checkpointer = None
+
+
+# ---------------------------------------------------------------------------
+# Monitor tools — query the chimera-monitor daemon's REST API. Lets Claude
+# inspect LangGraph runtime state directly from chat without curl
+# gymnastics. Skills (debug-runtime-issue, full-stack-trace) compose
+# these as their primary observability surface.
+# ---------------------------------------------------------------------------
+
+from chimera.server import monitor_tools as _monitor_tools
+
+
+@mcp.tool()
+async def monitor_projects() -> str:
+    """List LangGraph projects the chimera-monitor daemon has discovered.
+
+    Use to confirm what's available before asking about a specific
+    project. Returns project names, paths, and detected checkpointer
+    connections (Postgres URL or SQLite paths).
+    """
+    return await _monitor_tools.list_projects()
+
+
+@mcp.tool()
+async def monitor_active_runs(project: str) -> str:
+    """Threads currently running, paused, or starting in a project.
+
+    Excludes idle threads — use this to answer "what's happening
+    right now?" Returns thread_id, status, current_node, step, and
+    scope. Status classification accounts for HITL pauses, terminal
+    nodes, per-project running thresholds, and per-node observed
+    p95 latencies — trust it.
+
+    Args:
+        project: Project name as discovered by `monitor_projects()`.
+    """
+    return await _monitor_tools.list_active_runs(project)
+
+
+@mcp.tool()
+async def monitor_thread_state(project: str, thread_id: str, recent: int = 5) -> str:
+    """Full state + recent N checkpoints for one thread.
+
+    Use to investigate a specific run. Each checkpoint includes the
+    full state at that step and which node fired. The trajectory
+    (node-by-node sequence) is the single most informative artifact
+    for debugging stuck or failing runs.
+
+    Args:
+        project: Project name.
+        thread_id: Thread to inspect.
+        recent: How many most-recent checkpoints to include (1-50, default 5).
+    """
+    return await _monitor_tools.thread_state(project, thread_id, recent)
+
+
+@mcp.tool()
+async def monitor_find_stuck(project: str) -> str:
+    """Find threads classified as stuck (running >3× threshold) or
+    stale (>1× threshold) by the monitor's heuristics.
+
+    Use as the FIRST query when user asks "what's broken?" — surfaces
+    anomalies before deep investigation of any single thread. Returns
+    a prioritized list with age vs threshold for each.
+
+    Args:
+        project: Project name.
+    """
+    return await _monitor_tools.find_stuck(project)
+
+
+@mcp.tool()
+async def monitor_topology(project: str) -> str:
+    """Compiled-graph topology for a project: graph names + node counts.
+
+    Use when you need to understand what graphs exist and how they
+    relate, before drilling into a specific thread's path. Output
+    includes inter-graph 'invokes' relationships.
+
+    Args:
+        project: Project name.
+    """
+    return await _monitor_tools.topology(project)
 
 
 def main():
