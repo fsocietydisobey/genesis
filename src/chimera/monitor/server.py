@@ -67,6 +67,7 @@ def build_app():
     app = fastapi.FastAPI(title="Chimera Monitor", docs_url="/api/docs", openapi_url="/api/openapi.json")
 
     # Mount API routers (lazy imports so optional deps don't bite at import time)
+    from .api import api_routes as api_routes_api
     from .api import projects as projects_api
     from .api import threads as threads_api
     from .api import topology as topology_api
@@ -74,6 +75,7 @@ def build_app():
     app.include_router(projects_api.build_router(projects, connections_by_project), prefix="/api")
     app.include_router(topology_api.build_router(projects), prefix="/api")
     app.include_router(threads_api.build_router(connections_by_project, projects), prefix="/api")
+    app.include_router(api_routes_api.build_router(projects), prefix="/api")
 
     # Auto-scan: kick off background metadata enrichment for any project
     # whose cache is missing or stale. The worker drains serially so we

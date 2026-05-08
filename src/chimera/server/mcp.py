@@ -1269,6 +1269,24 @@ async def monitor_find_stuck(project: str) -> str:
 
 
 @mcp.tool()
+async def monitor_api_routes(project: str, graph_linked_only: bool = False) -> str:
+    """FastAPI routes for a project, with which routes invoke a LangGraph.
+
+    Use to follow user actions back to their handler — the full-stack-trace
+    skill calls this to bridge "user clicked X" → "this API route was hit"
+    → "which fired graph Y". Output is markdown-formatted with graph-linked
+    routes pinned to the top.
+
+    Args:
+        project: Project name.
+        graph_linked_only: If True, hide routes that don't invoke a graph.
+            Useful when the user is asking about LangGraph dispatch
+            specifically.
+    """
+    return await _monitor_tools.api_routes(project, graph_linked_only)
+
+
+@mcp.tool()
 async def monitor_topology(project: str) -> str:
     """Compiled-graph topology for a project: graph names + node counts.
 

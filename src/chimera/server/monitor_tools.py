@@ -176,6 +176,42 @@ async def find_stuck(project: str) -> str:
     return "\n".join(lines)
 
 
+async def api_routes(project: str, graph_linked_only: bool = False) -> str:
+    """FastAPI routes for a project + graph-invocation indicators.
+
+    Args:
+        project: Project name.
+        graph_linked_only: If True, only show routes that appear to
+            invoke a LangGraph (the typical use case — finding which
+            HTTP endpoint kicks off a particular graph).
+    """
+    data = _get(f"/api/api_routes/{urllib.parse.quote(project)}")
+    if isinstance(data, str):
+        return data
+    routes = data.get("routes", [])
+    if graph_linked_only:
+        routes = [r for r in routes if r.get("invokes_graph")]
+    if not routes:
+        return f"No routes{'with graph links' if graph_linked_only else ''} found in `{project}`."
+    lines = [
+        f"**`{project}` — {len(routes)} route(s)** "
+        f"({data.get('graph_linked_count', 0)} graph-linked)\n"
+    ]
+    # Sort: graph-linked first, then by path
+    routes.sort(key=lambda r: (not r.get("invokes_graph"), r.get("path", "")))
+    for r in routes:
+        marker = "→graph" if r.get("invokes_graph") else "      "
+        method = r.get("method", "?")
+        path = r.get("path", "?")
+        handler = r.get("handler", "?")
+        file_loc = f"{r.get('file', '?')}:{r.get('line', 0)}"
+        line = f"{marker}  {method:6s} {path:40s}  {handler}  ({file_loc})"
+        if r.get("invokes_graph") and r.get("graph_hints"):
+            line += f"\n        hints: {', '.join(r['graph_hints'][:3])}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
 async def topology(project: str) -> str:
     """Compiled-graph topology for a project: graph names + node counts."""
     data = _get(f"/api/topology/{urllib.parse.quote(project)}")

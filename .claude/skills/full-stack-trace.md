@@ -113,18 +113,24 @@ specter:get_redux_state                # if RTK / redux
 
 ### 4. API layer — was the request received correctly?
 
-If the project has FastAPI (or similar), the request went through
-some route handler. Find it:
+**Preferred** — query the API route map via the chimera MCP tool:
+- `monitor_api_routes(project=..., graph_linked_only=True)` — full
+  list of routes with their handler file/line and graph-invocation
+  hints. Fast lookup of "which handler runs for this URL".
+
+Then read the handler. **Fallback** if MCP tools unavailable:
 
 ```
 séance:semantic_search "<endpoint path> route handler"
 grep -rn "<endpoint_path>" --include="*.py" .
 ```
 
-Read the handler. Look for:
+Look in the handler for:
 - Pydantic validation that may have rejected silently
 - Auth checks that may have failed
-- Calls to LangGraph / business logic
+- Calls to LangGraph / business logic (the route map already flagged
+  this if it was a direct call; helper-dispatched calls won't be
+  flagged — verify by reading)
 - DB writes triggered
 
 If the handler invokes a LangGraph graph, note the `thread_id` it
