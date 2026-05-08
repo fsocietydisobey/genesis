@@ -278,10 +278,29 @@ chimera monitor start    # Daemonizes; auto-builds frontend if stale
 ```bash
 chimera monitor status                # Is the daemon up?
 chimera monitor rescan <project>      # Refresh metadata cache for one project
+chimera monitor restart               # Stop + start (after a chimera update)
 chimera monitor stop                  # Shutdown
 ```
 
 Default port: **8740** (`CHIMERA_MONITOR_PORT` to override). Binds `127.0.0.1` only — never exposed externally.
+
+### Skill pack — chimera as a Claude Code distribution
+
+Chimera ships skills that turn Claude Code into a LangGraph-aware development assistant. Install them into any project:
+
+```bash
+cd /path/to/your/project
+chimera install                       # Copies skills into ./.claude/skills/
+chimera doctor                        # Reports what's reachable
+```
+
+The skill pack composes the MCP servers you already have (séance, scarlet, specter, postgres, chimera-monitor) into structured workflows:
+
+- **`/debug-runtime-issue`** — investigate a failing/stuck/slow LangGraph thread. Combines monitor state, code search, dependency mapping, and known-failure-shape pattern matching.
+- **`/feature-impact-analysis`** — given a proposed change, map the full change-set across DB → models → API → graph → frontend → tests, with anchor patterns to copy from.
+- **`/full-stack-trace`** — given a user action, follow the request through every layer (UI click → API call → graph invocation → DB write) and identify where the chain broke.
+
+Each skill is a markdown file with an investigation procedure, a synthesis format, and a growing "known patterns" section that captures bugs as they're diagnosed. The skills get sharper with use.
 
 ### Backends
 
